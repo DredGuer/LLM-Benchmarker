@@ -344,31 +344,33 @@ LLM-Benchmarker applique la [convention commune 0.1](docs/normalisation-catalogu
 
 Dans **Autres exports**, deux choix sont disponibles :
 
-- **JSON compatible NVNC** : rapport 2.0/2.1/2.2 ou bundle 1.0, comme avant. Utiliser ce choix avec l’importeur NVNC actuel.
-- **JSON normalisé · schéma 2.3** : noms normalisés, noms originaux, clés de rapprochement, source HF identifiable et révision si connue. Un ensemble de rapports devient un bundle 1.1. Ce format nécessite une mise à jour de l’importeur NVNC avant d’être envoyé ; aucun changement du site NVNC n’est effectué par cette mise à jour du benchmark.
+- **JSON compatible NVNC** : rapport évalué 2.4.0, anciens rapports 2.0/2.1/2.2 ou bundle 1.0. Accepté dans NVNC Tech 0.5.0.
+- **JSON normalisé · schéma 2.3** : noms normalisés, noms originaux, clés de rapprochement, source HF identifiable et révision si connue. Un ensemble de rapports devient un bundle 1.1. NVNC Tech 0.5.0 accepte ce format, y compris la base évaluée 2.4.0. La mise à jour du benchmark ne déploie pas automatiquement le site NVNC.
 
 Exemples : `Apple_M3Pro_36Go_12CPU_18GPU`, `Gemma4_12B_MLX_NVFP4`. La famille exacte d’un Mac et sa taille ne sont pas devinées. La taille d’un modèle vient des métadonnées déclarées, jamais du seul tag commercial ; sans donnée, le nom contient `TailleInconnue`. Le nombre total de paramètres est utilisé pour les MoE. MLX/GGUF et quantification restent distincts. Les variantes et sources conservent leur identité ; les noms ne sont pas des clés uniques certifiées.
 
 Voir [l’implémentation et les limites](docs/normalisation-implementation.md).
 
-### Mise à jour sur macOS
+### Mise à jour 0.18.0 sur macOS ou Linux
 
-Dans le dossier du dépôt :
+Dans le terminal du backend, arrêter le processus avec **Ctrl+C**. Depuis le dossier du dépôt, avec Node.js ≥ 22.13.0 :
 
 ```bash
 git pull --ff-only origin main
-```
-
-Arrêter le backend avec **Ctrl+C** dans son terminal, puis relancer :
-
-```bash
+node --version
+node -p "require('./package.json').version"
+npm install
+npm run test:contract
+npm run test:multimodal
 npm start
 ```
 
-Conserver le serveur de fichiers déjà lancé. S’il est arrêté, dans un autre terminal placé dans le même dossier :
+Version du backend attendue : **1.6.0**. Garder ce terminal ouvert. Ces tests utilisent des fixtures/moteurs simulés ; valider ensuite les modalités sur vos modèles réels.
+
+Conserver le serveur de fichiers déjà lancé. S’il est arrêté, ouvrir un second terminal dans le dossier du dépôt :
 
 ```bash
-python3 -m http.server 8001
+python3 -m http.server 8001 --bind 127.0.0.1
 ```
 
-Ouvrir `http://localhost:8001/llm-benchmarker.html`, puis recharger avec **⌘⇧R**. L’interface doit afficher **0.18.0**. La base SQLite et les résultats historiques sont conservés ; aucune migration manuelle de base n’est nécessaire.
+Ouvrir `http://localhost:8001/llm-benchmarker.html`, puis recharger avec **⌘⇧R** sur Mac ou **Ctrl+Maj+R**. L’interface doit afficher **0.18.0**. La base SQLite et les résultats historiques sont conservés ; aucune migration manuelle de base n’est nécessaire. Le panneau **Tests image, vidéo et audio** doit être visible. Voir le [guide multimodal](docs/multimodal.md).
