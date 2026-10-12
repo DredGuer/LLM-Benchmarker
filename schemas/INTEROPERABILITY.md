@@ -1,6 +1,6 @@
 # LLM-Benchmarker ↔ NVNC-Tech
 
-Compatibilité intégrée : LLM-Benchmarker 0.16.0, NVNC-Tech 0.3.1. La version de l’application/producteur ne remplace pas la version du schéma. Réexporter un ancien test ne réécrit pas sa provenance.
+Compatibilité intégrée : LLM-Benchmarker 0.18.0, NVNC-Tech 0.5.0. La version de l’application/producteur ne remplace pas la version du schéma. Réexporter un ancien test ne réécrit pas sa provenance.
 
 ## Parcours utilisateur
 
@@ -14,15 +14,15 @@ Ne pas envoyer une sauvegarde SQLite (`llmb-local-backup`) ou un Markdown : ils 
 
 | Sujet | Export | Import NVNC |
 |---|---|---|
-| Rapport | `llm-benchmarker.community` 2.0/2.1/2.2 | Schéma complet Draft 2020-12 + contrôles sémantiques |
-| Plusieurs runners/inventaires | Bundle 1.0 | Chaque sous-rapport conserve son propre ID |
+| Rapport | `llm-benchmarker.community` 2.0/2.1/2.2/2.4 et normalisé 2.3/base 2.4 | Schéma complet Draft 2020-12 + contrôles sémantiques |
+| Plusieurs runners/inventaires | Bundle 1.0 ou normalisé 1.1 | Chaque sous-rapport conserve son propre ID |
 | Génération | Débit génération ≠ débit total | Débit génération dans la colonne ; métriques originales conservées |
 | Agentique | Objectif, conformité, justesse, outils/étapes expurgés | Conservation séparée ; pas de faux débit génération de la tâche |
 | Chauffe / partiel / échec | Phase et statut conservés | Libellés distincts, jamais convertis en réussite |
 | Mémoire | RSS, allocation déclarée, swap et MLX distincts | RSS seule dans la colonne mémoire ; autres mesures dans le payload |
 | Matériel cloud | Inventaire client ≠ moteur distant | Matériel d’inférence inconnu, pas la RAM du client |
 | Versions | Producteur + provenance capturée | Préservées ; rejet des schémas inconnus |
-| Doublons | ID de test stable ; ID de rapport nouveau au réexport | Identité et contenu séparés, réexport identique ignoré ; conflit refusé atomiquement |
+| Doublons | Nouveaux tests : empreinte d’événement et contenu, indépendante du producteur ; anciens tests : ID historique | Identité et contenu séparés, réexport identique ignoré ; conflit refusé atomiquement |
 
 NVNC limite à 20 MiB/fichier, 32 rapports, 10 000 tests, identifiants rapport/test 36 caractères et nom modèle 200 caractères (stockage MySQL). Aucun test distribué ou à concurrence non explicitement égale à 1 n’est importé ; un bilan indique les exclusions. Les rapports synthétiques et champs hors contrat sont refusés, sans suppression silencieuse. Les flags de confidentialité ne prouvent pas à eux seuls l’absence de secrets dans les textes autorisés. Ces données restent déclaratives, pas certifiées par NVNC.
 
@@ -42,3 +42,7 @@ pnpm run test:llmb
 ```
 
 Les fixtures sont des données fabriquées pour les tests, jamais des contributions réelles. Les cas génération/bundle/MLX/cloud sont générés par le véritable exporteur ; les cas agentiques proviennent des fixtures de contrat. Les tests MySQL simulent le pool et contrôlent la transaction, les doublons et conflits ; l’import authentifié sur le serveur déployé reste à vérifier après sa migration.
+
+## Évaluation et podiums
+
+Voir le [contrat commun 1.0.0](EVALUATION-CONTRACT.md), utilisable par tout producteur indépendant. Rapports évalués 2.4.0, enveloppe normalisée 2.3.0/base 2.4.0. Tests : `node backend/multimodal-evaluation.test.cjs`, puis côté NVNC `pnpm run test:evaluation`. Les médias originaux, références et réponses ne sont pas exportés. Aucune liaison automatique ou identifiant utilisateur/machine persistant.

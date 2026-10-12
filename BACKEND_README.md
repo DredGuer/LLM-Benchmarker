@@ -178,3 +178,7 @@ Le répertoire et les capacités matériels sont présentés localement ; ces es
 `backend/local-runners.js` expose `/api/runners*` pour une détection passive et des plans/installations/démarrages explicites. Le pilote installe Ollama, llama.cpp et MLX LM dans l’espace utilisateur sur Apple Silicon ; il utilise des recettes fixes, sans sudo, shell client ou écrasement d’une installation existante. L’extracteur Python contrôlé vérifie chemins et liens d’archives. Origine locale et jeton requis pour agir ; file unique et processus lancés identifiés en mémoire.
 
 [Guide complet](backend/LOCAL_RUNNERS.md). Les serveurs existants Windows/Linux restent détectables aux ports usuels, mais aucun installateur n’y est lancé. Le backend démarre seulement les services demandés ; les poids HF demandent un choix explicite supplémentaire et ne sont pas estimés par le catalogue Ollama. Les télémétries Ollama existantes restent inchangées.
+
+## Version 1.6.0 — 12 octobre 2026
+
+Support des validateurs communautaires 2.4.0 et normalisés 2.3.0/base 2.4.0. Aucun nouvel endpoint, schéma SQLite ou accès NVNC. Application 0.18.0 : [contrat commun](schemas/EVALUATION-CONTRACT.md), [tests multimodaux](docs/multimodal.md).

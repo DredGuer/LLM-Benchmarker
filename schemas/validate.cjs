@@ -21,11 +21,13 @@ function validateShape(value, rule, location = '$', rootSchema = schema) {
   }
   if (typeof value === 'string') {
     if (rule.minLength && value.length < rule.minLength) fail('too short');
+    if (rule.maxLength !== undefined && value.length > rule.maxLength) fail('too long');
     if (rule.pattern && !new RegExp(rule.pattern).test(value)) fail('pattern mismatch');
     if (rule.format === 'date-time' && (!/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) || !Number.isFinite(Date.parse(value)))) fail('invalid timestamp');
   }
   if (Array.isArray(value)) {
     if (rule.minItems && value.length < rule.minItems) fail('too few items');
+    if (rule.maxItems !== undefined && value.length > rule.maxItems) fail('too many items');
     if (rule.uniqueItems && new Set(value.map(v => JSON.stringify(v))).size !== value.length) fail('duplicate items');
     if (rule.items) value.forEach((v, i) => validateShape(v, rule.items, location + '[' + i + ']', rootSchema));
   }
@@ -54,6 +56,7 @@ function validateReport(report, contract = schema) {
     for (const v of Object.values(value)) checkReadings(v);
   }
   checkReadings(report);
+  if(report.schemaVersion==='2.3.0'){for(const m of report.machines)if(m.naming.matchKey!==m.naming.normalizedName.toLowerCase())throw new Error('Invalid normalized machine name');for(const t of report.tests)if(t.model.naming.originalName!==t.model.id||t.model.naming.matchKey!==t.model.naming.normalizedName.toLowerCase())throw new Error('Invalid normalized model identity');}
   const unique = (items, label) => {
     const ids = new Set();
     for (const item of items) { if (ids.has(item.id)) throw new Error('Duplicate ' + label); ids.add(item.id); }
@@ -74,6 +77,28 @@ function validateReport(report, contract = schema) {
   unique(report.execution.links, 'link');
   for (const l of report.execution.links) { node(l.fromNodeId); node(l.toNodeId); }
   for (const t of report.tests) {
+    if ((t.evaluation || t.multimodal || t.kind==='multimodal') && (report.baseSchemaVersion || report.schemaVersion)!=='2.4.0') throw new Error('Evaluation and media require 2.4.0');
+    if (t.evaluation) {
+      const e=t.evaluation,score=e.score;
+      if(e.suite){if(new Set(e.suite.tasks.map(t=>t.id)).size!==e.suite.tasks.length||!e.suite.tasks.some(t=>t.id===e.task.id&&t.datasetDigest===e.task.datasetDigest))throw new Error('Task outside declared suite');}
+      if(e.status==='assessed'){
+        if(!score||!e.criteria.length||new Set(e.criteria.map(c=>c.id)).size!==e.criteria.length)throw new Error('Invalid evaluated score/criteria');
+        if(e.evaluator.method==='deterministic'&&Math.abs(score.value-100*e.criteria.filter(c=>c.passed).length/e.criteria.length)>1e-8)throw new Error('Score disagrees with criteria');
+      }else if(score!==null||e.criteria.length)throw new Error('Incomplete evaluation has a score');
+      if(e.status==='assessed'&&t.quality&&e.evaluator.id===t.quality.evaluatorId&&e.evaluator.version===t.quality.evaluatorVersion){const expected=new Map(t.quality.criteria.map(c=>[c.id,c.passed]));if(!['pass','fail'].includes(t.quality.status)||expected.size!==e.criteria.length||e.criteria.some(c=>expected.get(c.id)!==c.passed))throw new Error('Evaluation/quality evidence mismatch');}
+      if(e.status==='assessed'&&e.evaluator.id==='llmb-agentic-criteria'&&t.agentic?.scenario?.version===e.evaluator.version){const expected=new Map(t.agentic.evaluation.criteria.map(c=>[c.id,c.passed]));expected.set('functional-goal',t.agentic.evaluation.goalCompleted);if(expected.size!==e.criteria.length||e.criteria.some(c=>expected.get(c.id)!==c.passed))throw new Error('Evaluation/agentic evidence mismatch');}
+      if(['image','video','audio'].includes(e.category)&&t.kind!=='multimodal')throw new Error('Media category without media test');
+      if(e.category==='agentic'&&t.kind!=='agentic')throw new Error('Agentic category without agentic test');
+      if(t.kind==='multimodal'&&e.category!==t.multimodal.modality)throw new Error('Media/evaluation category mismatch');
+      if(t.kind==='agentic'&&e.category!=='agentic')throw new Error('Agentic category mismatch');
+    }
+    if(t.multimodal&&t.kind!=='multimodal')throw new Error('Media descriptor on non-media test');
+    if(t.kind==='multimodal'){
+      const media=t.multimodal;
+      if(media.representation==='frames'&&(media.modality!=='video'||!media.frameTimes?.length||media.audioIncluded))throw new Error('Invalid sampled video');
+      if(media.frameTimes?.some((time,i)=>i>0&&time<=media.frameTimes[i-1]))throw new Error('Frame timestamps are not increasing');
+    }
+
     for (const id of t.participatingNodeIds) node(id);
     if (report.execution.mode === 'single-machine' && t.participatingNodeIds.length !== 1) throw new Error('Single-machine test has multiple nodes');
     if (t.finishedAt && Date.parse(t.finishedAt) < Date.parse(t.startedAt)) throw new Error('Reversed test dates');
@@ -82,7 +107,7 @@ function validateReport(report, contract = schema) {
       if (!t.participatingNodeIds.includes(n.id)) throw new Error('Resource outside test topology');
       if (r.deviceId && ![...n.cpus, ...n.gpus, ...n.storage].some(d => d.id === r.deviceId)) throw new Error('Unknown resource device');
     }
-    if ((t.provenance || t.verdict || t.quality || t.protocol.campaignId) && report.schemaVersion !== '2.2.0') throw new Error('Provenance requires 2.2.0');
+    if ((t.provenance || t.verdict || t.quality || t.protocol.campaignId) && !['2.2.0','2.4.0'].includes(report.baseSchemaVersion || report.schemaVersion)) throw new Error('Provenance requires 2.2.0');
     if (t.quality) {
       unique(t.quality.criteria, 'quality criterion');
       if (['pass','fail'].includes(t.quality.status)) {
@@ -103,7 +128,7 @@ function validateReport(report, contract = schema) {
     if (!t.agentic) continue;
     const a = t.agentic;
     if (a.scenario) {
-      if (!['2.1.0','2.2.0'].includes(report.schemaVersion)) throw new Error('Agentic scenario metadata requires 2.1.0 or 2.2.0');
+      if (!['2.1.0','2.2.0','2.4.0'].includes(report.baseSchemaVersion || report.schemaVersion)) throw new Error('Agentic scenario metadata requires 2.1.0 or 2.2.0');
       if (!Array.isArray(a.evaluation.criteria) || !a.evaluation.criteria.length || typeof a.evaluation.goalCompleted !== 'boolean') throw new Error('Scenario requires criteria and functional outcome');
       unique(a.evaluation.criteria, 'criterion');
       if (a.evaluation.taskSuccess !== a.evaluation.criteria.every(c => c.passed !== false)) throw new Error('Task conformity disagrees with criteria');

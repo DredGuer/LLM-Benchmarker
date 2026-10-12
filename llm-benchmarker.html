@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LLM Benchmarker Local</title>
-  <link rel="stylesheet" href="css/styles.css?v=0.17.0">
+  <link rel="stylesheet" href="css/styles.css?v=0.18.0">
 
 <style>
 .agentic-panel{overflow-x:auto;min-width:0}.agentic-panel table{width:100%;font-size:.85rem;border-collapse:collapse}.agentic-panel td,.agentic-panel th{padding:8px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}.agentic-panel pre,#agenticLiveTrace p{overflow-wrap:anywhere}
@@ -167,6 +167,24 @@
       </div>
       <button id="agenticStop" type="button" class="btn btn-ghost" hidden onclick="stopAgenticBenchmark()">Arrêter la campagne</button>
     </div>
+    <details class="card multimodal-panel">
+      <summary><strong>Tests image, vidéo et audio</strong></summary>
+      <p>Utilise le modèle et le runner sélectionnés. Ces tests de compréhension ont leur propre lancement et n’ajoutent pas de faux débit de génération.</p>
+      <p id="mediaStatus" role="status" aria-live="polite"></p>
+      <fieldset id="mediaControls" style="border:0;padding:0;min-width:0">
+        <label for="mediaKind">Catégorie</label><select id="mediaKind"><option value="image">Image</option><option value="video">Vidéo</option><option value="audio">Audio</option></select>
+        <label for="mediaFile">Média local — 20 Mio maximum</label><input id="mediaFile" type="file" accept="image/png,image/jpeg,image/webp,video/mp4,video/webm,audio/wav,audio/mpeg,audio/ogg,audio/flac">
+        <label for="mediaRepresentation">Traitement vidéo</label><select id="mediaRepresentation"><option value="frames">8 images chronologiques, sans audio — vision locale ou API</option><option value="native">Vidéo complète avec audio — Gemini compatible</option></select>
+        <p>Images : runner vision compatible. Audio : Gemini ou API chat audio compatible (WAV/MP3). Une capacité absente est signalée ; sélectionner un modèle réellement compatible.</p>
+        <label for="mediaPrompt">Consigne</label><textarea id="mediaPrompt" rows="3" maxlength="12000" placeholder="Exemple : combien d’objets rouges sont visibles ? Réponds uniquement avec le nombre."></textarea>
+        <label for="mediaExpected">Réponse de référence, facultative</label><input id="mediaExpected" maxlength="4000" placeholder="Exemple : 3">
+        <p>La référence active un score de correspondance textuelle exacte (casse et espaces normalisés). Sans référence, le test reste consultable mais ne participe pas au podium. Ce score ne juge pas l’esthétique d’un média.</p>
+        <label><input id="mediaConsent" type="checkbox"> J’autorise l’envoi de ce média au runner distant choisi, si nécessaire.</label>
+        <button type="button" class="btn btn-primary" onclick="runMultimodalBenchmark()">Lancer le test multimodal</button>
+      </fieldset>
+      <button id="mediaStop" type="button" class="btn btn-ghost" disabled onclick="stopMultimodalBenchmark()">Arrêter le test multimodal</button>
+      <p>Les octets du média, son nom et la référence ne sont pas exportés vers NVNC. Seuls l’empreinte du média, le protocole, le score et les conditions sont partagés. La consigne et la réponse restent dans l’historique local.</p>
+    </details>
     <!-- TYPES DE PROMPTS -->
     <div class="card pro-only" id="promptCategoryCard">
       <div class="card-title"><span class="icon">📋</span> Types de prompts</div>
@@ -727,35 +745,38 @@ window.PROMPT_TYPES = [
 ];
 </script>
 
-<script src="js/core/version.js?v=0.17.0"></script>
+<script src="js/core/version.js?v=0.18.0"></script>
 <script src="js/core/state.js"></script>
-<script src="js/utils/helpers.js?v=0.17.0"></script>
+<script src="js/utils/helpers.js?v=0.18.0"></script>
 <script src="js/ui/toast.js"></script>
 <script src="js/ui/modals.js"></script>
-<script src="js/ui/tabs.js?v=0.17.0"></script>
+<script src="js/ui/tabs.js?v=0.18.0"></script>
 <script src="js/core/storage.js"></script>
-<script src="js/core/environment.js?v=0.17.0"></script>
-<script src="js/core/advancedConfig.js?v=0.17.0"></script>
+<script src="js/core/environment.js?v=0.18.0"></script>
+<script src="js/core/advancedConfig.js?v=0.18.0"></script>
 <script src="js/core/memory.js?v=0.06-apple-resources1"></script>
-<script src="js/core/catalogue-naming.js?v=0.17.0"></script>
-<script src="js/core/runners.js?v=0.17.0"></script>
-<script src="js/core/prompts.js?v=0.17.0"></script>
-<script src="js/core/streaming.js?v=0.17.0"></script>
-<script src="js/core/community-export.js?v=0.17.0"></script>
-<script src="js/ui/results.js?v=0.17.0"></script>
-<script src="js/core/protocol.js?v=0.17.0"></script>
-<script src="js/core/agentic-stream.js?v=0.17.0"></script>
-<script src="js/core/agentic.js?v=0.17.0"></script>
-<script src="js/core/quality.js?v=0.17.0"></script>
-<script src="js/core/controlled.js?v=0.17.0"></script>
-<script src="js/core/batch.js?v=0.17.0"></script>
-<script src="js/core/profiles.js?v=0.17.0"></script>
-<script src="js/core/benchmark.js?v=0.17.0"></script>
+<script src="js/core/catalogue-naming.js?v=0.18.0"></script>
+<script src="js/core/runners.js?v=0.18.0"></script>
+<script src="js/core/prompts.js?v=0.18.0"></script>
+<script src="js/core/streaming.js?v=0.18.0"></script>
+<script src="js/core/evaluation-contract.js?v=0.18.0"></script>
+<script src="js/core/evaluation.js?v=0.18.0"></script>
+<script src="js/core/multimodal.js?v=0.18.0"></script>
+<script src="js/core/community-export.js?v=0.18.0"></script>
+<script src="js/ui/results.js?v=0.18.0"></script>
+<script src="js/core/protocol.js?v=0.18.0"></script>
+<script src="js/core/agentic-stream.js?v=0.18.0"></script>
+<script src="js/core/agentic.js?v=0.18.0"></script>
+<script src="js/core/quality.js?v=0.18.0"></script>
+<script src="js/core/controlled.js?v=0.18.0"></script>
+<script src="js/core/batch.js?v=0.18.0"></script>
+<script src="js/core/profiles.js?v=0.18.0"></script>
+<script src="js/core/benchmark.js?v=0.18.0"></script>
 <script src="js/core/apiKeys.js"></script>
 <script src="js/core/connectivity.js"></script>
-<script src="js/core/database.js?v=0.17.0"></script>
-<script src="js/core/history.js?v=0.17.0"></script>
-<script src="js/ui/statistics.js?v=0.17.0"></script>
+<script src="js/core/database.js?v=0.18.0"></script>
+<script src="js/core/history.js?v=0.18.0"></script>
+<script src="js/ui/statistics.js?v=0.18.0"></script>
 
 <button class="btn btn-primary" onclick="toggleAnalysis()" style="position:fixed;bottom:20px;right:20px;z-index:1000">💬 Analyser les résultats</button>
 <section id="analysisPanel" hidden style="position:fixed;bottom:76px;right:16px;width:min(460px,calc(100vw - 32px));max-height:80vh;overflow:auto;background:var(--surface,#161b22);color:var(--text,#e6edf3);border:1px solid var(--border,#30363d);border-radius:12px;padding:16px;z-index:1001;box-shadow:0 8px 32px #0008" aria-label="Assistant d’analyse">
@@ -776,7 +797,7 @@ window.PROMPT_TYPES = [
   <div style="display:flex;gap:6px;flex-wrap:wrap"><button id="analysisSend" class="btn btn-primary btn-sm" onclick="askAnalysis(false)">Envoyer</button><button id="analysisConclusion" class="btn btn-ghost btn-sm" onclick="askAnalysis(true)">Écrire une conclusion</button><button class="btn btn-ghost btn-sm" onclick="cancelAnalysis()">Annuler</button><button class="btn btn-ghost btn-sm" onclick="clearAnalysis()">Effacer échanges et clé</button></div>
 </section>
 
-<script src="js/ui/analysis.js?v=0.17.0"></script>
+<script src="js/ui/analysis.js?v=0.18.0"></script>
 <script>document.addEventListener("click",function(){setTimeout(updateCampaignPlan,0);});document.addEventListener("input",updateCampaignPlan);document.addEventListener("change",updateCampaignPlan);document.addEventListener("DOMContentLoaded",updateCampaignPlan);</script>
 <script>initAgenticUI();</script>
 <section id="modelAdvisorModal" tabindex="-1" onkeydown="advisorDialogKey(event)" hidden role="dialog" aria-modal="true" aria-labelledby="advisorTitle"><div class="advisor-panel">
@@ -799,8 +820,8 @@ window.PROMPT_TYPES = [
   <button id="advisorCancel" class="btn btn-ghost" hidden onclick="cancelAdvisedDownloads()">Arrêter le téléchargement et la file</button>
   <div id="advisorMessage" role="status" aria-live="polite"></div><div id="advisorJobs"></div>
 </div></section>
-<script src="js/ui/model-advisor.js?v=0.17.0"></script>
-<script src="js/ui/local-runners.js?v=0.17.0"></script>
-<script src="js/main.js?v=0.17.0"></script>
+<script src="js/ui/model-advisor.js?v=0.18.0"></script>
+<script src="js/ui/local-runners.js?v=0.18.0"></script>
+<script src="js/main.js?v=0.18.0"></script>
 </body>
 </html>

@@ -8,7 +8,7 @@ function buildStatistics(sessions) {
   var groups = new Map(), seen = new Set();
   (Array.isArray(sessions) ? sessions : []).forEach(function(session) {
     (session.results || []).forEach(function(r) {
-      if (r.kind === 'agentic' || r.error || r.completion?.limitReached || r.phase === 'warmup' || (r.protocol?.campaignId && r.protocol.contextValidation !== 'verified') || seen.has(r.id)) return;
+      if (r.kind === 'agentic' || r.kind === 'multimodal' || r.error || r.completion?.limitReached || r.phase === 'warmup' || (r.protocol?.campaignId && r.protocol.contextValidation !== 'verified') || seen.has(r.id)) return;
       if (r.id) seen.add(r.id);
       var m = r.metrics || {}, p = r.protocol || {}, meta = r.modelMetadata || {};
       if (!Number.isFinite(m.tokensPerSec) || m.tokensPerSec < 0) return;
@@ -132,6 +132,7 @@ function renderStatistics() {
   var windowSize=Number(document.getElementById('statisticsWindow')?.value)||1;
   panel.textContent='';
   renderAgenticStatistics(history,panel);
+  renderMultimodalStatistics(history,panel);
   if (typeof qualitySummary === 'function') {
     var seenQuality = new Set(), rows = history.flatMap(s=>s.results || []).filter(r=>{if(seenQuality.has(r.id))return false;seenQuality.add(r.id);return !(r.protocol?.campaignId && r.protocol.contextValidation !== 'verified');});
     var qualityRows = qualitySummary(rows);
@@ -226,4 +227,20 @@ function renderAgenticStatistics(history,panel) {
   groups.forEach((g,i)=>{var detail=statisticsDetails(section,'agentic-group-'+i,g.model+' · '+(g.rows[0].agentic.scenario?.title||g.scenario));
     statisticsTable(detail,['Capacité','Critères réussis / évalués','Taux'],agenticDimensionScores(g.rows).map(d=>[agenticDimensionLabel(d.dimension),d.passed+' / '+d.total,(100*d.rate).toFixed(1)+'%']));
     statisticsTable(detail,['Passe','Objectif atteint','Conforme','Temps (s)','Appels','Reprises'],g.rows.map(r=>[r.rep,r.agentic.evaluation.goalCompleted===undefined?'N/A':r.agentic.evaluation.goalCompleted?'Oui':'Non',!r.error&&r.agentic.evaluation.taskSuccess===true?'Oui':'Non',(r.metrics.totalTime/1000).toFixed(2),r.agentic.evaluation.toolCallCount,r.agentic.evaluation.retryCount]));});
+}
+
+function multimodalSummary(history) {
+  var groups=new Map(),seen=new Set();
+  (history||[]).forEach(s=>(s.results||[]).forEach(r=>{
+    if(r.kind!=='multimodal'||r.phase==='warmup'||seen.has(r.id))return;if(r.id)seen.add(r.id);
+    var e=r.evaluation,key=JSON.stringify([r.model,r.modelMetadata?.digest,r.modelMetadata?.quantization,r.runner,r.runnerVersion,e?.task,e?.evaluator,r.multimodal,r.metrics?.temperature,r.metrics?.maxTokens]);
+    if(!groups.has(key))groups.set(key,{model:r.model,runner:r.runner,modality:r.multimodal?.modality,representation:r.multimodal?.representation,rows:[]});groups.get(key).rows.push(r);
+  }));
+  return Array.from(groups.values()).map(g=>({...g,attempts:g.rows.length,score:statisticsSummary(g.rows.filter(r=>!r.error&&!r.completion?.limitReached&&r.evaluation?.status==='assessed').map(r=>r.evaluation.score.value)),duration:statisticsSummary(g.rows.filter(r=>!r.error).map(r=>r.metrics?.totalTime))}));
+}
+function renderMultimodalStatistics(history,panel) {
+  var groups=multimodalSummary(history);if(!groups.length)return;
+  var section=statisticsDetails(panel,'multimodal-results','Compréhension multimodale · '+groups.reduce((n,g)=>n+g.attempts,0)+' essais');
+  statisticsElement('p','Chaque ligne conserve le même média, la même consigne, la même référence et les mêmes réglages. Le score vérifie une réponse exacte normalisée ; aucun débit de génération ou TTFT n’est inventé.',section);
+  statisticsTable(section,['Modèle','Runner','Catégorie','Entrée','Essais','Évalués','Score moyen / 100','Durée moyenne (s)'],groups.map(g=>[g.model,g.runner,g.modality,g.representation,g.attempts,g.score.count,g.score.mean==null?'Non évalué':g.score.mean.toFixed(1),g.duration.mean==null?'N/A':(g.duration.mean/1000).toFixed(2)]));
 }

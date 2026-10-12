@@ -104,13 +104,15 @@ async function executeAgenticTest(model,rep,externalSignal,warmupRuns,scenario){
   }
   if(isOllamaCloud(model)){memory=null;provenance=typeof captureTestProvenance==='function'?captureTestProvenance(model):null;}
   if(!outcome)throw new Error(failure||'Aucune évaluation backend reçue.');
-  return {id:crypto.randomUUID(),provenance,executionOutcome:done?'completed':signal.aborted?'interrupted':'failed',kind:'agentic',agentic:outcome.agentic,agenticArtifacts:outcome.artifactTexts,agenticTrace:trace,agenticTraceLimited:traceLimited,agenticSystemPrompt:session.systemPrompt,agenticToolSchemas:session.tools,
+  var result={id:crypto.randomUUID(),provenance,executionOutcome:done?'completed':signal.aborted?'interrupted':'failed',kind:'agentic',agentic:outcome.agentic,agenticArtifacts:outcome.artifactTexts,agenticTrace:trace,agenticTraceLimited:traceLimited,agenticSystemPrompt:session.systemPrompt,agenticToolSchemas:session.tools,
     model,runner:RUNNERS[runner].name,runnerVersion:state.runnerVersion||null,modelMetadata:state.modelMetadata,timestamp:finishedAt,startedAt,finishedAt,phase:'measurement',rep,
     promptType:'agentic-'+scenario.id,promptTypeName:'Agentique · '+scenario.title,promptEmoji:'🤖',promptText:session.prompt,response:text,error:failure,
     protocol:{version:'agentic-suite-'+session.version,promptDigest:await promptFingerprint(session.systemPrompt+'\n'+session.prompt),loadState:load,cacheState:'unknown',warmupRuns},
     metrics:{totalTokens:turnOpen?null:tokens,tokensPerSec:turnOpen?null:elapsed>0?Math.round(tokens/(elapsed/1000)*10)/10:0,totalTime:Math.round(elapsed),ttft:firstSegment===null?null:Math.round(firstSegment),firstAnswerTimeMs:firstAnswer===null?null:Math.round(firstAnswer),firstToolTimeMs:firstTool===null?null:Math.round(firstTool),modelTurns:turns,
       tokenCountKind:!turnOpen&&declared?'declared':'estimated',tokenCountSource:turnOpen?'native-chat:incomplete-token-total-unavailable':declared?'native-chat:sum-output-token-counts':'native-chat:mixed-estimates',generationTimeMs:!turnOpen&&timingKnown&&timingReports?genMs:null,prefillTimeMs:!turnOpen&&timingKnown&&timingReports?prefillMs:null,generationTokensPerSec:!turnOpen&&timingKnown&&genMs>0?tokens/(genMs/1000):null,
       temperature,maxTokens,thinkingObserved:thinkingSeen,contextMode:getRequestedContextTokens()===null?'auto':'explicit',contextRequestedTokens:getRequestedContextTokens(),contextObservedTokens:memory?.loadedModel?.contextTokens??null},env:JSON.parse(JSON.stringify(state.env)),...(memory?{memory}:{})};
+  if(typeof enrichEvaluation==='function')result.evaluation=await enrichEvaluation(result);
+  return result;
 }
 async function runAgenticBenchmark(inBatch){
   if(state.batchActive&&!inBatch)return;

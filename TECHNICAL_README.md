@@ -146,7 +146,7 @@ Plans temporaires, recettes allowlistées, staging, signatures/digest, venv/whee
 
 ## Persistance SQLite (0.15.0)
 
-Le backend 1.5.0 monte `backend/database.js` avant le parseur JSON général. Stockage utilisateur hors dépôt, WAL/transactions, schema local 1 et garde local Host/Origin/connexion ; voir [DATABASE.md](backend/DATABASE.md). `js/core/database.js` gère migration idempotente, vue mémoire et checkpoints sérialisés. `history.js`, profils, statistiques et assistant consomment cette vue : les descriptions antérieures de stockage navigateur concernent les versions avant 0.15.0. Les mesures sont immuables, annotations/exclusions distinctes. Les moteurs attendent chaque checkpoint et la sauvegarde finale. Application/producteur 0.17.0 ; contrats/provenances historiques préservés.
+Le backend 1.5.0 monte `backend/database.js` avant le parseur JSON général. Stockage utilisateur hors dépôt, WAL/transactions, schema local 1 et garde local Host/Origin/connexion ; voir [DATABASE.md](backend/DATABASE.md). `js/core/database.js` gère migration idempotente, vue mémoire et checkpoints sérialisés. `history.js`, profils, statistiques et assistant consomment cette vue : les descriptions antérieures de stockage navigateur concernent les versions avant 0.15.0. Les mesures sont immuables, annotations/exclusions distinctes. Les moteurs attendent chaque checkpoint et la sauvegarde finale. Application/producteur 0.18.0 ; contrats/provenances historiques préservés.
 
 
 ## Interopérabilité NVNC Tech (0.16.0)
@@ -157,3 +157,7 @@ Les rapports communautaires et bundles utilisent les contrats publiés dans `sch
 ## Nommage catalogue (0.17.0)
 
 `js/core/catalogue-naming.js` fournit des labels déterministes depuis les champs déclarés et un marqueur provisoire. Les identifiants d’inférence et les snapshots SQLite restent intacts. L’affichage et le Markdown utilisent ces labels ; `buildNormalizedCommunity` ajoute une sélection de champs dans le contrat optionnel 2.3 / bundle 1.1. `buildCommunityV2` et les campagnes automatiques restent au contrat compatible NVNC. Voir [normalisation-implementation.md](docs/normalisation-implementation.md).
+
+## Évaluation et multimodal (0.18.0)
+
+Voir le [contrat commun](schemas/EVALUATION-CONTRACT.md) et le [guide multimodal](docs/multimodal.md). Export évalué 2.4.0 ; normalisé 2.3.0/base 2.4.0. Backend 1.6.0 : validateurs mis à jour, endpoints et SQLite inchangés. `npm run test:multimodal` et `npm run test:contract` utilisent des fixtures et moteurs simulés.

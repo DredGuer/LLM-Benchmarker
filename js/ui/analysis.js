@@ -151,7 +151,7 @@ function selectAnalysisResults(question,conclusion) {
 }
 function buildAnalysisContext(results,scope) {
   var data=analysisDataset(results,Infinity),groups=new Map(),models=new Map();
-  function eligible(r){return r.kind !== 'agentic' && !r.failed && r.phase!=='warmup' && !r.completion?.limitReached && (!r.controlled || r.controlled.contextValidation === 'verified');}
+  function eligible(r){return r.kind !== 'agentic' && r.kind !== 'multimodal' && !r.failed && r.phase!=='warmup' && !r.completion?.limitReached && (!r.controlled || r.controlled.contextValidation === 'verified');}
   function stats(values){values=values.filter(v=>Number.isFinite(v) && v>=0).sort((a,b)=>a-b);
     if(!values.length)return {count:0,mean:null,median:null,min:null,max:null,std:null};
     var mean=values.reduce((a,b)=>a+b,0)/values.length,mid=Math.floor(values.length/2);

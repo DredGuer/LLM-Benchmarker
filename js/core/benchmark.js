@@ -380,6 +380,7 @@ async function executeTest(model, promptType, promptText, rep, signal, protocol)
     };
   }
   
+  if(typeof enrichEvaluation==='function'&&!protocol.warmup)result.evaluation=await enrichEvaluation(result);
   return result;
   } finally {
     if (monitorLocal) {

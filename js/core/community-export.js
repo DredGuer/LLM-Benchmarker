@@ -59,7 +59,7 @@ function buildCommunityV2(results, generatedAt) {
     var machines = [communityMachine(first.env, generatedAt, 'local')];
     if (!localRunner) machines.push(communityMachine({}, generatedAt, inferenceNode));
     var report = {
-      schema: 'llm-benchmarker.community', schemaVersion: items.some(r=>r.executionOutcome || r.provenance || r.quality || r.protocol?.campaignId) ? '2.2.0' : items.some(r=>r.agentic?.scenario) ? '2.1.0' : '2.0.0',
+      schema: 'llm-benchmarker.community', schemaVersion: items.some(r=>r.evaluation||r.multimodal) ? '2.4.0' : items.some(r=>r.executionOutcome || r.provenance || r.quality || r.protocol?.campaignId) ? '2.2.0' : items.some(r=>r.agentic?.scenario) ? '2.1.0' : '2.0.0',
       reportId: crypto.randomUUID(), generatedAt: generatedAt,
       producer: { name: 'LLM Benchmarker', version: typeof LLMB_VERSION === 'string' ? LLMB_VERSION : 'unknown' }, synthetic: false,
       privacy: { profile: 'community-redacted', rawPromptsIncluded: false, rawResponsesIncluded: false, rawToolArgumentsIncluded: false },
@@ -133,9 +133,9 @@ function buildCommunityV2(results, generatedAt) {
         var apiTimingSource = runner === 'Ollama' ? (r.kind === 'agentic' ? 'ollama-api-chat:sum' : 'ollama-api-generate') : (r.kind === 'agentic' ? 'compatible-chat:sum' : 'provider-response');
         var tokenKind = m.tokenCountKind || 'estimated';
         var test = {
-          id: r.id || 'test-' + index, kind: r.kind === 'agentic' ? 'agentic' : 'generation', status: r.error ? 'failure' : r.completion?.limitReached ? 'partial' : 'success',
+          id: r.id || 'test-' + index, kind: r.kind === 'multimodal' ? 'multimodal' : r.kind === 'agentic' ? 'agentic' : 'generation', status: r.error ? 'failure' : r.completion?.limitReached ? 'partial' : 'success',
           startedAt: startedAt, finishedAt: finishedAt,
-          model: { id: r.model || 'unknown', digest: mem.loadedModel?.digest || null, quantization: meta.quantization || null,
+          model: { id: r.model || 'unknown', digest: mem.loadedModel?.digest || meta.digest || null, quantization: meta.quantization || null,
             contextMaxTokens: communityInteger(meta.contextMaxTokens),
             parameterCount: communityInteger(meta.parameterCount), activeParameterCount: null,
             architecture: meta.type || 'unknown', architectureName: meta.architecture || null,
@@ -143,7 +143,7 @@ function buildCommunityV2(results, generatedAt) {
           parameters: { temperature: communityNumber(m.temperature), maxOutputTokens: communityInteger(m.maxTokens),
             contextTokens: communityInteger(m.contextObservedTokens), ...(r.provenance || r.protocol?.campaignId ? {requestedContextTokens:communityInteger(m.contextRequestedTokens),contextMode:m.contextMode || 'unknown'} : {}), contextSource: m.contextObservedTokens != null ? 'ollama-api-ps:context_length (observed loaded runner)' : null, concurrency: 1,
             thinking: { enabled: typeof m.thinkingEnabled === 'boolean' ? m.thinkingEnabled : null, observed: typeof m.thinkingObserved === 'boolean' ? m.thinkingObserved : null } },
-          protocol: { id: r.agentic?.scenario ? 'llmb-agentic-'+r.agentic.scenario.id : r.kind === 'agentic' ? 'llmb-agentic-files' : 'llmb-generation-' + (['conversation','factual','math','code','logic','creative','warmup'].includes(r.promptType) ? r.promptType : 'custom'),
+          protocol: { id: r.agentic?.scenario ? 'llmb-agentic-'+r.agentic.scenario.id : r.kind === 'agentic' ? 'llmb-agentic-files' : r.kind==='multimodal' ? 'llmb-multimodal-'+r.multimodal.modality : 'llmb-generation-' + (['conversation','factual','math','code','logic','creative','warmup'].includes(r.promptType) ? r.promptType : 'custom'),
             version: r.protocol?.version || 'unknown', phase: r.phase || 'unknown', promptDigest: r.protocol?.promptDigest || null,
             warmupRuns: r.protocol?.warmupRuns || 0, loadState: r.protocol?.loadState || 'unknown', cacheState: r.protocol?.cacheState || 'unknown',
             cachePolicy: r.protocol?.cachePolicy || null, repetition: Math.max(1, communityInteger(r.rep) || 1) },
@@ -162,6 +162,9 @@ function buildCommunityV2(results, generatedAt) {
             ttft: metric(runner === 'Ollama' || runner === 'MLX LM' || r.agentic?.scenario ? m.ttft : null, 'ms', 'browser:first-response-segment', 'measured') },
           resourceSamples: samples.sort((a,b) => a.elapsedMs - b.elapsedMs), resourceSummaries: summaries
         };
+        if(r.evaluation||r.multimodal)test.model.format=typeof meta.format==='string'?meta.format:typeof CatalogueNaming==='object'?CatalogueNaming.model(test.model.id,meta).format:null;
+        if(r.evaluation){var e=r.evaluation;EvaluationContract.validateAssessment(e);test.evaluation={contractVersion:e.contractVersion,category:e.category,protocol:{id:e.protocol.id,version:e.protocol.version},task:{id:e.task.id,datasetDigest:e.task.datasetDigest},evaluator:{id:e.evaluator.id,version:e.evaluator.version,method:e.evaluator.method},status:e.status,score:e.score?{value:e.score.value,min:e.score.min,max:e.score.max,direction:e.score.direction}:null,criteria:e.criteria.map(c=>({id:c.id,passed:c.passed})),...(e.suite?{suite:{id:e.suite.id,version:e.suite.version,datasetDigest:e.suite.datasetDigest,aggregation:e.suite.aggregation,tasks:e.suite.tasks.map(t=>({id:t.id,datasetDigest:t.datasetDigest}))}}:{})};}
+        if(r.multimodal){var media=r.multimodal;test.multimodal={modality:media.modality,representation:media.representation,inputDigest:media.inputDigest,mimeType:media.mimeType,byteLength:media.byteLength,processingVersion:media.processingVersion,audioIncluded:media.audioIncluded,...(media.frameTimes?{frameTimes:[...media.frameTimes]}:{})};}
         if (r.quality) test.quality = {status:r.quality.status,evaluatorId:r.quality.evaluatorId || null,evaluatorVersion:r.quality.evaluatorVersion || null,taskId:r.quality.taskId || null,
           criteria:r.quality.criteria.map(c=>({id:c.id,label:c.label,passed:!!c.passed}))};
         if (r.protocol?.campaignId) { ['campaignId','contextOrder','requestedContextTokens','contextValidation'].forEach(key=>{test.protocol[key]=r.protocol[key];}); }

@@ -3,6 +3,9 @@ var LLMB_QUALITY_VERSION = '1.0.0';
 function qualityEnabled() { return !!document.getElementById('qualityEnabled')?.checked; }
 function qualityTasksFor(category) {
   var cases = [];
+  if(category==='conversation') [['Mina','15:30'],['Louis','09:15']].forEach(function(v,i){cases.push({id:'dialogue-'+(i+1),family:'dialogue',person:v[0],time:v[1],prompt:'Voici un dialogue : utilisateur : "Je m’appelle '+v[0]+'. Mon rendez-vous est à '+v[1]+'." Assistant : "Bien noté." Utilisateur : "Rappelle-moi mon nom et l’heure du rendez-vous." Réponds uniquement en JSON {"name":"...","time":"..."}. Ne change pas les informations.'});});
+  if(category==='creative') [['lanterne','pluie'],['rivière','étoile']].forEach(function(words,i){cases.push({id:'constraints-'+(i+1),family:'creative-constraints',words:words,prompt:'Écris une courte fiction qui contient les mots '+words.join(' et ')+'. Réponds uniquement en JSON {"titles":[trois titres distincts de 1 à 6 mots],"story":"un récit de 20 à 60 mots"}. Ce test mesure le respect des contraintes, pas l’originalité artistique.'});});
+  if(category==='factual') [['2031-04-12','Marseille'],['2032-09-03','Lille']].forEach(function(v,i){cases.push({id:'document-'+(i+1),family:'document-facts',date:v[0],city:v[1],prompt:'Document fictif : "La réunion est prévue le '+v[0]+' à '+v[1]+'." Extrais uniquement ce qui est écrit, en JSON {"date":"YYYY-MM-DD","city":"..."}.'});});
   if (category === 'math') [[360,80],[195,65]].forEach(function(v,i) {
     cases.push({id:'duration-'+(i+1),family:'duration',distance:v[0],speed:v[1],
       prompt:'Un véhicule roule à '+v[1]+' km/h et parcourt '+v[0]+' km. Calcule le temps. Réponds uniquement avec un objet JSON contenant totalMinutes (nombre), hours (entier), minutes (entier).'});
@@ -15,10 +18,10 @@ function qualityTasksFor(category) {
     cases.push({id:'fibonacci-'+(i+1),family:'fibonacci',indices,
       prompt:'Évalue les sorties d’un algorithme Fibonacci : F(0)=0, F(1)=1, F(n)=F(n-1)+F(n-2). Pour les indices '+JSON.stringify(indices)+', réponds uniquement en JSON {"values":[les résultats dans le même ordre]}. Cette épreuve vérifie les sorties, pas la qualité ou l’exécution d’un programme.'});
   });
-  return cases.map(function(task) { return {id:category,name:({math:'Mathématiques',logic:'Logique',code:'Sorties algorithmiques'})[category]+' · justesse '+task.id,emoji:'🎯',prompt:task.prompt,qualityTask:task}; });
+  return cases.map(function(task) { return {id:category,name:({math:'Mathématiques',logic:'Logique',code:'Sorties algorithmiques',conversation:'Conversation · rappel',creative:'Créativité · contraintes',factual:'Lecture factuelle'})[category]+' · justesse '+task.id,emoji:'🎯',prompt:task.prompt,qualityTask:task}; });
 }
 function campaignPromptTypes() {
-  return PROMPT_TYPES.filter(pt=>state.selectedPrompts.has(pt.id)).flatMap(pt=>qualityEnabled() && ['math','logic','code'].includes(pt.id) ? qualityTasksFor(pt.id) : [pt]);
+  return PROMPT_TYPES.filter(pt=>state.selectedPrompts.has(pt.id)).flatMap(pt=>qualityEnabled() && ['math','logic','code','conversation','creative','factual'].includes(pt.id) ? qualityTasksFor(pt.id) : [pt]);
 }
 function finalAnswerText(text) {
   var value=String(text || ''), end=value.lastIndexOf('</think>');
@@ -35,7 +38,18 @@ function evaluateQuality(task,text,completion) {
   var object=value!==null&&typeof value==='object'&&!Array.isArray(value);check('json','Réponse finale JSON valide',object);
   if(!object)return q;
   var keys=Object.keys(value).sort().join(',');
-  if(task.family==='duration'){
+  if(task.family==='dialogue'){
+    check('shape','Deux champs texte attendus',keys==='name,time'&&typeof value.name==='string'&&typeof value.time==='string');
+    check('name','Nom conservé dans le dialogue',value.name===task.person);check('time','Heure conservée dans le dialogue',value.time===task.time);
+  }else if(task.family==='document-facts'){
+    check('shape','Deux champs texte attendus',keys==='city,date'&&typeof value.city==='string'&&typeof value.date==='string');check('date','Date extraite sans invention',value.date===task.date);check('city','Ville extraite sans invention',value.city===task.city);
+  }else if(task.family==='creative-constraints'){
+    var titles=Array.isArray(value.titles)?value.titles:[],story=typeof value.story==='string'?value.story:'',words=story.trim().split(/\s+/).filter(Boolean);
+    check('shape','Titres et récit structurés',keys==='story,titles'&&typeof value.story==='string'&&titles.every(t=>typeof t==='string'));
+    check('titles','Trois titres distincts de 1 à 6 mots',titles.length===3&&new Set(titles.map(t=>String(t).trim().toLocaleLowerCase())).size===3&&titles.every(t=>typeof t==='string'&&t.trim().split(/\s+/).filter(Boolean).length>=1&&t.trim().split(/\s+/).length<=6));
+    check('length','Récit de 20 à 60 mots',words.length>=20&&words.length<=60);
+    task.words.forEach(function(word,i){check('word-'+i,'Mot imposé présent',words.some(w=>w.toLocaleLowerCase().replace(/^[^\p{L}]+|[^\p{L}]+$/gu,'')===word));});
+  }else if(task.family==='duration'){
     var total=task.distance/task.speed*60;
     check('shape','Champs et types numériques attendus',keys==='hours,minutes,totalMinutes'&&Number.isFinite(value.totalMinutes)&&Number.isInteger(value.hours)&&Number.isInteger(value.minutes));
     check('duration','Durée totale calculée à partir des données',Number.isFinite(value.totalMinutes)&&Math.abs(value.totalMinutes-total)<1e-6);

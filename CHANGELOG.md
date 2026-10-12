@@ -1,27 +1,30 @@
 # Changelog
 
-## Non publié — documentation du 7 octobre 2026
-
-- Ajout de la proposition commune de nommage matériel/modèles v0.1, identique dans les deux dépôts.
-- Aucun changement logiciel ni migration ; mise en œuvre prévue après validation.
-
 Historique des changements de LLM Benchmarker. Les dates correspondent aux intégrations dans le dépôt. Les entrées antérieures à ce fichier ont été reconstituées à partir des commits ; ce ne sont pas des releases ou tags ajoutés rétroactivement.
 
 ## Versions actuelles
 
 | Élément | Version | Référence |
 |---|---|---|
-| Application / interface / producteur des exports | **0.17.0** | `js/core/version.js` |
-| Backend Node | 1.5.0 | `package.json` |
+| Application / interface / producteur des exports | **0.18.0** | `js/core/version.js` |
+| Backend Node | 1.6.0 | `package.json` |
 | Protocole de génération | 0.09 | `js/core/benchmark.js` |
 | Batterie agentique | 2.0.1 | `backend/agentic-suite.js` |
-| Rapport communautaire compatible NVNC | 2.2.0 ; compatibilité 2.0.0/2.1.0 | `schemas/community-v2.schema.json` |
+| Rapport communautaire compatible NVNC | 2.4.0 ; compatibilité 2.0.0/2.1.0/2.2.0 | `schemas/community-v2.schema.json` |
 | Export normalisé optionnel | 2.3.0 / bundle 1.1.0 | `schemas/community-normalized.schema.json` |
 | Bundle de rapports communautaires | 1.0.0 | `schemas/community-bundle.schema.json` |
 | Catalogue / estimateur | 1.0.0 / 1.0.0 | `backend/model-catalog.json` / `backend/model-advisor.js` |
 | Inventaire Apple | 1.0.0 | `backend/apple-inventory.js` |
 
 Ces numéros désignent des composants différents. Les résultats historiques et exemples synthétiques conservent leur version d’origine. Le suffixe des URL de scripts sert à invalider le cache ; il ne désigne pas nécessairement la version de l’application.
+
+## [0.18.0] — 2026-10-12
+
+- Contrat d’évaluation commun 1.0.0 et export communautaire 2.4.0 ; enveloppe normalisée 2.3.0/base 2.4.0. Aucune connexion à NVNC, compte partagé ou identité persistante. Dérivés et autres outils admis par contrat.
+- Scores déterministes contrôlés et batteries de deux cas pour conversation, créativité/contraintes, lecture factuelle, code/sorties, logique et maths ; scénarios agentiques évalués séparément.
+- Panneau de compréhension image/vidéo/audio, consentement distant, limites et interruption. Vidéo Gemini native ou huit images sans audio ; audio Gemini ou API chat compatible WAV/MP3. Support effectif selon moteur/modèle.
+- Référence textuelle facultative, exactitude normalisée et statistiques multimodales séparées ; aucun TTFT/débit inventé. Médias bruts, noms de fichiers, références, prompts et réponses exclus du JSON communautaire.
+- Tests du véritable parcours avec moteurs simulés, transport, confidentialité, décodage/annulation vidéo simulés, scores, batteries et anciens exports. Backend 1.6.0 pour les nouveaux contrats ; aucun nouvel endpoint ni migration SQLite.
 
 ## [0.17.0] — 2026-10-07
 
