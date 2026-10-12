@@ -2,7 +2,7 @@
 
 Benchmarkez vos modèles locaux ou vos API, conservez les campagnes dans une base SQLite locale et comparez leurs performances sur votre machine.
 
-**Interface v0.18.0 · protocole de mesure 0.09 · export communautaire évalué 2.4.0 (anciens rapports 2.0.0/2.1.0/2.2.0 acceptés).** Documentation vérifiée le 12 octobre 2026. [Historique des versions et changements](CHANGELOG.md). Ces versions désignent des éléments différents ; la version 1.6.0 de `package.json` concerne le backend.
+**Interface v0.18.1 · protocole de mesure 0.09 · export communautaire évalué 2.4.0 (anciens rapports 2.0.0/2.1.0/2.2.0 acceptés).** Documentation vérifiée le 12 octobre 2026. [Historique des versions et changements](CHANGELOG.md). Ces versions désignent des éléments différents ; la version 1.6.0 de `package.json` concerne le backend.
 
 Fonctions actuelles : runners locaux en premier, détection passive et installation/démarrage intégrés sur Apple Silicon, catalogue Ollama avec estimation RAM/disque et téléchargement local séquentiel, interface Simple/Pro et profils nommés de campagne, campagnes automatiques multi-modèles Ollama avec exports locaux classés, chauffe séparée, contexte Auto, identification Dense/MoE lorsqu’elle est disponible, inventaire Apple Silicon, suivi RSS/swap/MLX, exports Markdown/JSON, statistiques interactives, batterie de capacités agentiques et assistant d’analyse au choix. Les bulles **!** expliquent les réglages et mesures au clic, au clavier ou sur mobile.
 
@@ -319,6 +319,10 @@ Un objectif agentique atteint ne signifie pas que tous les critères sont respec
 
 Le swap occupé concerne toute la machine ; les deltas de lecture/écriture indiquent séparément les échanges pendant la mesure. Ces données ne prouvent ni que le modèle en est seul responsable, ni qu’il explique un ralentissement. Les budgets et évaluateurs actuels restent inchangés. La piste des tests granulaires de contexte et capacités, avec bornes manuelles/automatiques, est consignée dans [la roadmap](innovation.md) et n’est pas encore implémentée.
 
+## Médias de référence fixes (0.18.1)
+
+Déposez vos fichiers `benchmarks/media/image.png`, `benchmarks/media/video.mp4` et `benchmarks/media/audio.wav`. Le mode par défaut utilise ces fichiers pour tous les modèles. Copier `cases.example.json` en `cases.json` dans ce dossier permet de fixer consignes, références et mode vidéo. Les médias personnels/configurations sont ignorés par Git et conservés lors des mises à jour. Absence de fichier, refus, erreur, troncature ou réponse incorrecte arrêtent le test avec un résultat explicite ; une limite de l’adaptateur est distinguée d’une limite du modèle. [Emplacements et guide](docs/multimodal.md).
+
 ## Évaluation commune et tests multimodaux (0.18.0)
 
 Le [contrat commun 1.0.0](schemas/EVALUATION-CONTRACT.md) définit catégories, protocoles, scores et conditions reproductibles, sans dépendance directe entre outils. Avec **Justesse contrôlée**, conversation, créativité, lecture factuelle, code, logique et maths proposent deux cas par catégorie. Les podiums NVNC exigent toute la batterie ; créativité vérifie des contraintes, pas une originalité générale.
@@ -351,7 +355,7 @@ Exemples : `Apple_M3Pro_36Go_12CPU_18GPU`, `Gemma4_12B_MLX_NVFP4`. La famille ex
 
 Voir [l’implémentation et les limites](docs/normalisation-implementation.md).
 
-### Mise à jour 0.18.0 sur macOS ou Linux
+### Mise à jour 0.18.1 sur macOS ou Linux
 
 Dans le terminal du backend, arrêter le processus avec **Ctrl+C**. Depuis le dossier du dépôt, avec Node.js ≥ 22.13.0 :
 
@@ -373,4 +377,4 @@ Conserver le serveur de fichiers déjà lancé. S’il est arrêté, ouvrir un s
 python3 -m http.server 8001 --bind 127.0.0.1
 ```
 
-Ouvrir `http://localhost:8001/llm-benchmarker.html`, puis recharger avec **⌘⇧R** sur Mac ou **Ctrl+Maj+R**. L’interface doit afficher **0.18.0**. La base SQLite et les résultats historiques sont conservés ; aucune migration manuelle de base n’est nécessaire. Le panneau **Tests image, vidéo et audio** doit être visible. Voir le [guide multimodal](docs/multimodal.md).
+Ouvrir `http://localhost:8001/llm-benchmarker.html`, puis recharger avec **⌘⇧R** sur Mac ou **Ctrl+Maj+R**. L’interface doit afficher **0.18.1**. La base SQLite et les résultats historiques sont conservés ; aucune migration manuelle de base n’est nécessaire. Le panneau **Tests image, vidéo et audio** doit être visible. Voir le [guide multimodal](docs/multimodal.md).

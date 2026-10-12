@@ -44,6 +44,27 @@ async function run(){
   const local=structuredClone(actual);delete local.kind;delete local.multimodal;local.id=crypto.randomUUID();local.promptType=category;local.promptText=entry.prompt;local.response=JSON.stringify(answer);local.quality=scope.evaluateQuality(task,local.response,{});local.protocol.promptDigest=await scope.promptFingerprint(entry.prompt);local.startedAt=new Date(Date.parse(actual.startedAt)+classical.length*1000).toISOString();local.finishedAt=new Date(Date.parse(actual.finishedAt)+classical.length*1000).toISOString();local.evaluation=await scope.enrichEvaluation(local);assert(local.evaluation.suite);assert.equal(local.evaluation.suite.tasks.length,2);assert.equal(local.quality.status,'pass');classical.push(local);
  }
  const standard=scope.buildCommunityV2(classical,'2026-10-12T09:00:01Z');validateReport(standard);
+
+ // Fixed reference mode: exercise the actual launcher with local files/config and
+ // model refusals; unsupported adapters produce a persisted failed result.
+ scope.File=File;scope.getRepetitions=()=>3;el('mediaSource').value='fixed';el('mediaKind').value='image';scope.state.runner='gemini';el('mediaConsent').checked=true;
+ let outcome='correct',calls=0,missing=false,configuration={version:'1.0.0',cases:{image:{prompt:'PRIVATE_FIXED_PROMPT: réponds seulement 3',expected:'3',representation:'native'},audio:{prompt:'Transcris cet audio',expected:'3',representation:'native'}}};
+ scope.fetchWithTimeout=async(url,options)=>{
+  if(url==='benchmarks/media/cases.json')return {ok:true,text:async()=>JSON.stringify(configuration)};
+  if(url.startsWith('benchmarks/media/'))return {ok:!missing,status:missing?404:200,headers:{get:()=>String(png.length)},blob:async()=>new Blob([png])};
+  if(!options?.body)return {ok:false,status:404};calls++;
+  return {ok:outcome!=='http-error',status:outcome==='http-error'?415:200,json:async()=>({candidates:[{content:{parts:[{text:outcome==='refusal'?'I cannot view images.':outcome==='empty'?'':outcome==='wrong'?'4':'3'}]},finishReason:outcome==='truncated'?'MAX_TOKENS':'STOP'}],usageMetadata:{candidatesTokenCount:1,promptTokenCount:20}})};
+ };
+ await scope.updateMediaPreset();assert.equal(el('mediaPrompt').value,configuration.cases.image.prompt);assert(el('mediaFile').disabled);assert(el('mediaPrompt').readOnly);
+ await scope.runMultimodalBenchmark();assert.equal(calls,3);assert.equal(scope.state.results.length,3);assert(scope.state.results.every(r=>r.evaluation.score.value===100));assert.equal(scope.state.results[0].multimodal.inputDigest,actual.multimodal.inputDigest);
+ for(const [mode,label] of [['refusal','model-refusal'],['empty','failed'],['http-error','failed'],['wrong','reference-mismatch'],['truncated','truncated']]){
+  outcome=mode;calls=0;await scope.runMultimodalBenchmark();assert.equal(calls,1);assert.equal(scope.state.results.length,1);const r=scope.state.results[0];assert.equal(r.mediaOutcome,label);assert.equal(scope.state.isRunning,false);assert.equal(el('mediaStop').disabled,true);
+  const exported=scope.buildCommunityV2([r],'2026-10-12T09:00:01Z');validateReport(exported);assert.equal(exported.tests[0].status,mode==='wrong'?'success':mode==='truncated'?'partial':'failure');assert(!JSON.stringify(exported).includes('PRIVATE_FIXED_PROMPT'));assert.equal(r.evaluation.score?.value??null,mode==='wrong'?0:null);
+ }
+ missing=true;calls=0;scope.state.results=[];await scope.runMultimodalBenchmark();assert.equal(calls,0);assert.equal(scope.state.results.length,0);assert(events.some(e=>e.message?.includes('benchmarks/media/image.png')));missing=false;
+ scope.state.runner='ollama';el('mediaKind').value='audio';calls=0;await scope.runMultimodalBenchmark();assert.equal(calls,0);assert.equal(scope.state.results.length,1);assert.equal(scope.state.results[0].mediaOutcome,'adapter-unsupported');assert(scope.state.results[0].error);validateReport(scope.buildCommunityV2(scope.state.results,'2026-10-12T09:00:01Z'));
+ configuration.cases.audio.prompt=5;scope.state.results=[];calls=0;await scope.runMultimodalBenchmark();assert.equal(calls,0);assert.equal(scope.state.results.length,0);
+ console.log('PASS: fixed files/config reused, successful repetitions, missing files/config errors before inference, persisted adapter/model failures, empty/HTTP/truncated outputs and score-zero early stop (mocks)');
  if(process.argv[2]){fs.mkdirSync(process.argv[2],{recursive:true});for(const modality of ['image','audio','video']){const copy=structuredClone(actual);copy.id=crypto.randomUUID();copy.multimodal={...copy.multimodal,modality,mimeType:modality==='audio'?'audio/wav':modality==='video'?'video/mp4':'image/png',audioIncluded:modality!=='image'};copy.evaluation={...copy.evaluation,category:modality};const output=scope.buildCommunityV2([copy],'2026-10-12T09:00:01Z');output.synthetic=true;validateReport(output);fs.writeFileSync(path.join(process.argv[2],modality+'.json'),JSON.stringify(output,null,2)+'\n')}normalized.synthetic=true;standard.synthetic=true;fs.writeFileSync(path.join(process.argv[2],'normalized.json'),JSON.stringify(normalized,null,2)+'\n');fs.writeFileSync(path.join(process.argv[2],'standard-suites.json'),JSON.stringify(standard,null,2)+'\n')}
  console.log('PASS: multimodal image/audio/video adapters, real exporter, privacy, normalized 2.4, schemas, scores, conversation/creativity/agentic and consent (provider mocked)');
 }

@@ -42,3 +42,9 @@ FUSION_NOTES.md
 
 # Local benchmark exports may contain private prompts and responses.
 /export/
+
+# User-owned fixed benchmark media and answers, preserved across updates.
+/benchmarks/media/image.png
+/benchmarks/media/video.mp4
+/benchmarks/media/audio.wav
+/benchmarks/media/cases.json

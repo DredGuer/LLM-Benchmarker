@@ -6,7 +6,7 @@ Historique des changements de LLM Benchmarker. Les dates correspondent aux inté
 
 | Élément | Version | Référence |
 |---|---|---|
-| Application / interface / producteur des exports | **0.18.0** | `js/core/version.js` |
+| Application / interface / producteur des exports | **0.18.1** | `js/core/version.js` |
 | Backend Node | 1.6.0 | `package.json` |
 | Protocole de génération | 0.09 | `js/core/benchmark.js` |
 | Batterie agentique | 2.0.1 | `backend/agentic-suite.js` |
@@ -17,6 +17,12 @@ Historique des changements de LLM Benchmarker. Les dates correspondent aux inté
 | Inventaire Apple | 1.0.0 | `backend/apple-inventory.js` |
 
 Ces numéros désignent des composants différents. Les résultats historiques et exemples synthétiques conservent leur version d’origine. Le suffixe des URL de scripts sert à invalider le cache ; il ne désigne pas nécessairement la version de l’application.
+
+## [0.18.1] — 2026-10-12
+
+- Médias fixes par défaut : `benchmarks/media/image.png`, `video.mp4`, `audio.wav` ; configuration personnelle `cases.json`, exemple fourni, consignes identiques par modèle. Médias/configuration ignorés par Git et préservés lors des mises à jour ; absence de fichier bloque avant inférence.
+- Enregistrer et distinguer adaptateur incompatible, refus déclaré du modèle, réponse vide/erreur/délai ; arrêter les répétitions. Arrêter aussi sur troncature ou référence incorrecte, avec score zéro conservé pour la comparaison.
+- Mode personnalisé disponible, chemins exacts et procédures documentés. Contrat 2.4.0 et backend 1.6.0 inchangés. Tests du véritable lanceur avec moteurs/fichiers simulés réussis, ainsi que les régressions exports/campagnes/cloud.
 
 ## [0.18.0] — 2026-10-12
 
