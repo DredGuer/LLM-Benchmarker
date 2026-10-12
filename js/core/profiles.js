@@ -15,6 +15,7 @@ function validateCampaignSettings(c) {
   if (!Array.isArray(c.models) || c.models.length>100 || new Set(c.models).size!==c.models.length) fail();
   c.models.forEach(m=>{str(m,256);if(!m.trim())fail();});
   if (!Array.isArray(c.prompts) || c.prompts.some(id=>!PROMPT_TYPES.some(p=>p.id===id)) || new Set(c.prompts).size!==c.prompts.length) fail();
+  var media=c.media??[];if(!Array.isArray(media)||media.length>3||new Set(media).size!==media.length||media.some(id=>!['image','video','audio'].includes(id)))fail();
   if (!Array.isArray(c.agenticScenarios) || c.agenticScenarios.some(id=>!AGENTIC_SCENARIOS.some(s=>s.id===id)) || new Set(c.agenticScenarios).size!==c.agenticScenarios.length) fail();
   bool(c.manual);bool(c.agentic);bool(c.quality);bool(c.controlled);bool(c.continueErrors);
   num(c.temperature,0,2);num(c.customTemperature,0,2);num(c.maxTokens,1,32768,true);num(c.repetitions,1,20,true);
@@ -25,7 +26,7 @@ function validateCampaignSettings(c) {
   if (!c.temperatures || typeof c.temperatures!=='object' || Array.isArray(c.temperatures))fail();
   for (var [id,temp] of Object.entries(c.temperatures)) { if(!PROMPT_TYPES.some(p=>p.id===id&&id!=='custom'))fail();num(temp,0,2); }
   // Return an explicit allowlist, so secrets in malformed storage never propagate.
-  return {version:'1.0.0',runner:c.runner,customBase:c.customBase,model:c.model,customModel:c.customModel,models:c.models.slice(),prompts:c.prompts.slice(),customPrompt:c.customPrompt,
+  return {version:'1.0.0',runner:c.runner,customBase:c.customBase,model:c.model,customModel:c.customModel,models:c.models.slice(),prompts:c.prompts.slice(),media:media.slice(),customPrompt:c.customPrompt,
     manual:c.manual,temperature:c.temperature,customTemperature:c.customTemperature,maxTokens:c.maxTokens,repetitions:c.repetitions,
     temperatures:Object.fromEntries(Object.entries(c.temperatures)),agentic:c.agentic,agenticScenarios:c.agenticScenarios.slice(),quality:c.quality,
     controlled:c.controlled,contextA:c.contextA,contextB:c.contextB,continueErrors:c.continueErrors};
@@ -34,7 +35,7 @@ function captureCampaignSettings() {
   var temperatures={},saved=loadAdvancedConfig()?.temperatures || {};
   PROMPT_TYPES.forEach(p=>{if(p.id!=='custom'&&Number.isFinite(saved[p.id]))temperatures[p.id]=saved[p.id];});
   return validateCampaignSettings({version:'1.0.0',runner:state.runner,customBase:state.customBase||'',model:profileField('modelSelect').value||'',customModel:profileField('modelCustom').value||'',
-    models:state.runner==='ollama'?(state.desiredBatchModels||checkedBatchModels()):[],prompts:Array.from(state.selectedPrompts),customPrompt:profileField('customPromptText').value||'',
+    models:state.runner==='ollama'?(state.desiredBatchModels||checkedBatchModels()):[],prompts:Array.from(state.selectedPrompts),media:typeof selectedMediaTypes==='function'?selectedMediaTypes().map(t=>t.modality):[],customPrompt:profileField('customPromptText').value||'',
     manual:isManualMode,temperature:Number(profileField('temperature').value),customTemperature:Number(profileField('customTemp').value),maxTokens:Number(profileField('maxTokens').value),repetitions:Number(profileField('repetitions').value),temperatures,
     agentic:agenticEnabled(),agenticScenarios:selectedAgenticScenarios().map(s=>s.id),quality:profileField('qualityEnabled').checked,
     controlled:profileField('controlledEnabled').checked,contextA:Number(profileField('controlledContextA').value),contextB:Number(profileField('controlledContextB').value),continueErrors:profileField('batchContinueErrors').checked});
@@ -80,6 +81,8 @@ async function applyCampaignSettings(settings) {
   profileField('modelSelect').value=c.model;profileField('modelCustom').value=c.customModel;
   if(c.model&&!profileField('modelSelect').value&&!c.customModel)profileField('modelCustom').value=c.model;
   state.selectedPrompts=new Set(c.prompts);
+  ['image','video','audio'].forEach(id=>{var el=profileField('media-'+id);if(el)el.checked=c.media.includes(id);});
+  var consent=profileField('mediaConsent');if(consent)consent.checked=false;
   for(var [id,value] of Object.entries({customPromptText:c.customPrompt,temperature:c.temperature,customTemp:c.customTemperature,maxTokens:c.maxTokens,repetitions:c.repetitions,controlledContextA:c.contextA,controlledContextB:c.contextB}))profileField(id).value=String(value);
   for(var [id,value] of Object.entries({agenticEnabled:c.agentic,qualityEnabled:c.quality,controlledEnabled:c.controlled,batchContinueErrors:c.continueErrors}))profileField(id).checked=value;
   AGENTIC_SCENARIOS.forEach(s=>{profileField('agentic-'+s.id).checked=c.agenticScenarios.includes(s.id);});

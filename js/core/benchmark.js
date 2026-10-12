@@ -4,10 +4,12 @@
 
 async function runBenchmark(inBatch) {
   if (state.batchActive && !inBatch) return;
+  if(typeof mediaCampaignPreflight==='function'&&!mediaCampaignPreflight())return;
   if (typeof controlledEnabled === 'function' && controlledEnabled() && !state.controlledActive) return runControlledCampaign(inBatch);
   if (typeof agenticEnabled === 'function' && agenticEnabled()) return runAgenticBenchmark(inBatch);
   if (state.isRunning || state.analysisRunning) return;
-  if (!state.selectedPrompts.size) { showToast('Sélectionnez un type de prompt', 'error'); return; }
+  var selectedTypes = typeof campaignPromptTypes === 'function' ? campaignPromptTypes() : PROMPT_TYPES.filter(pt => state.selectedPrompts.has(pt.id));
+  if (!selectedTypes.length) { showToast('Sélectionnez un type de test', 'error'); return; }
   var model = getSelectedModel();
   if (!model || model === 'unknown-model') { showToast('Veuillez sélectionner un modèle', 'error'); return; }
   var repetitions = getRepetitions();
@@ -17,7 +19,7 @@ async function runBenchmark(inBatch) {
   var sessionId=crypto.randomUUID(),sessionSavedAt=new Date().toISOString();
   var runner = state.runner, sessionResults = [], warmupRuns = 0, completedTests = 0;
   var runBtn = document.getElementById('runBtn'), progressSection = document.getElementById('progressSection');
-  var selectedTypes = typeof campaignPromptTypes === 'function' ? campaignPromptTypes() : PROMPT_TYPES.filter(pt => state.selectedPrompts.has(pt.id));
+  var mediaStopped=false;
   var totalTests = selectedTypes.length * repetitions;
   var activeType = selectedTypes[0], activePrompt = '', activeRep = 1, activePhase = 'measurement';
   state.isRunning = true; resetCampaignResults(); switchTab('results'); lockCampaignControls(true);
@@ -47,17 +49,17 @@ async function runBenchmark(inBatch) {
       } catch (_) {}
     }
     if (state.batchAbort) throw new Error("Campagne automatique interrompue.");
-    if (RUNNERS[runner].type === 'local') await warmup();
+    if (RUNNERS[runner].type === 'local'&&selectedTypes.some(pt=>pt.kind!=='multimodal')) await warmup();
     for (var i = 0; i < selectedTypes.length; i++) {
-      if (state.batchAbort || (state.controlledStop && state.controlledActive)) break;
+      if (mediaStopped||state.batchAbort || (state.controlledStop && state.controlledActive)) break;
       for (var rep = 1; rep <= repetitions; rep++) {
-        if (state.batchAbort || (state.controlledStop && state.controlledActive)) break;
+        if (mediaStopped||state.batchAbort || (state.controlledStop && state.controlledActive)) break;
         activeType = selectedTypes[i]; activeRep = rep; activePhase = 'measurement';
         activePrompt = activeType.id === 'custom' ? (document.getElementById('customPromptText').value.trim() || 'Dis bonjour.') : activeType.prompt;
         skipToNextFlag = false; retryCurrentFlag = false;
         currentAbortController = new AbortController();
         var loadState = await observeLoadedModel(model, currentAbortController.signal);
-        if (runner === 'ollama' && loadState === 'cold') {
+        if (activeType.kind!=='multimodal'&&runner === 'ollama' && loadState === 'cold') {
           await warmup();
           activeType = selectedTypes[i]; activeRep = rep; activePhase = 'measurement';
           activePrompt = activeType.id === 'custom' ? (document.getElementById('customPromptText').value.trim() || 'Dis bonjour.') : activeType.prompt;
@@ -71,6 +73,7 @@ async function runBenchmark(inBatch) {
             { loadState: loadState, warmupRuns: warmupRuns });
           if (retryCurrentFlag) { rep--; continue; }
           await remember(result); completedTests++;
+          if(typeof mediaMustStop==='function'&&mediaMustStop(result)){mediaStopped=true;var reason=mediaStopMessage(result);if(state.batchActive)state.batchFailure=reason;showToast('Benchmark arrêté : '+reason,'error');break;}
           if (skipToNextFlag) break;
         } catch (error) {
           if (retryCurrentFlag) { rep--; continue; }
@@ -79,14 +82,12 @@ async function runBenchmark(inBatch) {
         }
       }
     }
-    setProgress(100, 'Terminé : chauffe séparée et ' + completedTests + ' mesure(s)');
-    showToast('Campagne terminée : ' + completedTests + ' mesure(s)', 'success');
+    if(!mediaStopped){setProgress(100, 'Terminé : chauffe séparée et ' + completedTests + ' mesure(s)');
+    showToast('Campagne terminée : ' + completedTests + ' mesure(s)', 'success');}
   } catch (error) {
     if (state.batchActive && !error.contextVerification) state.batchFailure = error.message;
     if (state.controlledActive) state.controlledStop = true;
-    var failed = buildErrorResult(model, activeType, error.message, activeRep);
-    failed.phase = activePhase; failed.promptText = activePrompt;
-    if(!error.contextVerification&&!error.persistence)await remember(failed).catch(()=>{}); showToast(error.message, 'error');
+    if(activeType?.kind!=='multimodal'){var failed = buildErrorResult(model, activeType, error.message, activeRep);failed.phase=activePhase;failed.promptText=activePrompt;if(!error.contextVerification&&!error.persistence)await remember(failed).catch(()=>{});}showToast(error.message,'error');
   } finally {
     if (sessionResults.length) {
       var session = { id:sessionId,savedAt:sessionSavedAt,model: model, runner: runner, results: sessionResults,
@@ -102,6 +103,7 @@ async function runBenchmark(inBatch) {
 }
 
 async function executeTest(model, promptType, promptText, rep, signal, protocol) {
+  if(promptType.kind==='multimodal')return executeCampaignMediaTest(model,promptType,rep,signal);
   // Use advanced config functions to get settings based on mode
   protocol = protocol || {};
   var provenance = typeof captureTestProvenance === 'function' ? captureTestProvenance(model) : null;

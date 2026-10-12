@@ -6,7 +6,7 @@ Historique des changements de LLM Benchmarker. Les dates correspondent aux inté
 
 | Élément | Version | Référence |
 |---|---|---|
-| Application / interface / producteur des exports | **0.18.1** | `js/core/version.js` |
+| Application / interface / producteur des exports | **0.18.2** | `js/core/version.js` |
 | Backend Node | 1.6.0 | `package.json` |
 | Protocole de génération | 0.09 | `js/core/benchmark.js` |
 | Batterie agentique | 2.0.1 | `backend/agentic-suite.js` |
@@ -17,6 +17,13 @@ Historique des changements de LLM Benchmarker. Les dates correspondent aux inté
 | Inventaire Apple | 1.0.0 | `backend/apple-inventory.js` |
 
 Ces numéros désignent des composants différents. Les résultats historiques et exemples synthétiques conservent leur version d’origine. Le suffixe des URL de scripts sert à invalider le cache ; il ne désigne pas nécessairement la version de l’application.
+
+## [0.18.2] — 2026-10-12
+
+- Section Médias avec cases Image/Vidéo/Audio et bouton de campagne commun. Sélections médias seules, mixtes texte/agentique ou batch, profils persistés ; consentement distant distinct.
+- Envoyer uniquement les médias, sans champ de prompt, consigne cachée ni texte ajouté aux images vidéo. Protocole `media-input-only-1.0.0` et empreinte de dataset distincts ; anciens champs de prompt du fichier personnel ignorés.
+- Réutiliser la même exécution multimodale dans la campagne, conserver les résultats et couper sur refus/erreur/troncature/référence incorrecte sans faux doublon d’erreur texte. Pas de chauffe textuelle dans une campagne de médias seuls. Comparaison de contextes bloquée si médias cochés.
+- Fichiers personnels conservés, configuration facultative limitée aux références et traitement. Tests du moteur réel avec moteurs/fichiers simulés, transports sans texte, profils et régressions campagnes/agentique/cloud réussis. Backend 1.6.0 et contrat communautaire 2.4.0 inchangés.
 
 ## [0.18.1] — 2026-10-12
 

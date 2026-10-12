@@ -117,6 +117,7 @@ async function executeAgenticTest(model,rep,externalSignal,warmupRuns,scenario){
 async function runAgenticBenchmark(inBatch){
   if(state.batchActive&&!inBatch)return;
   if(state.isRunning||state.analysisRunning)return;
+  if(typeof mediaCampaignPreflight==='function'&&!mediaCampaignPreflight())return;
   if(!['ollama','lmstudio','llamacpp','mlx'].includes(state.runner)){showToast('La batterie agentique exige un runner local avec appels d’outils natifs.','error');return;}
   var scenarios=selectedAgenticScenarios(),generation=typeof campaignPromptTypes==='function'?campaignPromptTypes():PROMPT_TYPES.filter(pt=>state.selectedPrompts.has(pt.id)),model=getSelectedModel(),repetitions=getRepetitions(),runner=state.runner;
   if(!scenarios.length){showToast('Sélectionnez au moins une épreuve agentique.','error');return;}
@@ -137,12 +138,12 @@ async function runAgenticBenchmark(inBatch){
     await warmup();
     for(var rep=1;rep<=repetitions;rep++){
       for(var pt of generation){if(state.batchAbort || controller.signal.aborted || (state.controlledActive && state.controlledStop))break;
-        if(runner==='ollama'&&await observeLoadedModel(model,controller.signal)==='cold')await warmup();
+        if(pt.kind!=='multimodal'&&runner==='ollama'&&await observeLoadedModel(model,controller.signal)==='cold')await warmup();
         var prompt=pt.id==='custom'?(document.getElementById('customPromptText').value.trim()||'Dis bonjour.'):pt.prompt;
         agenticLiveStart('Génération · '+pt.name);agenticLive('request','Mesure de génération ; le suivi texte est affiché dans la zone en direct.');
         button.textContent='Génération · '+pt.name+' · '+rep+'/'+repetitions;
-        try{await remember(await executeTest(model,pt,prompt,rep,controller.signal,{loadState:await observeLoadedModel(model,controller.signal),warmupRuns:warmups}));}
-        catch(error){if(controller.signal.aborted||error.persistence)throw error;await remember(buildErrorResult(model,pt,error.message,rep));}
+        try{var r=await executeTest(model,pt,prompt,rep,controller.signal,{loadState:await observeLoadedModel(model,controller.signal),warmupRuns:warmups});await remember(r);if(typeof mediaMustStop==='function'&&mediaMustStop(r)){var stopped=Object.assign(new Error(mediaStopMessage(r)),{mediaStop:true});throw stopped;}}
+        catch(error){if(controller.signal.aborted||error.persistence||error.mediaStop||pt.kind==='multimodal')throw error;await remember(buildErrorResult(model,pt,error.message,rep));}
         showLiveSections(false);setControlButtons(false);
       }
       for(var scenario of scenarios){if(state.batchAbort || controller.signal.aborted || (state.controlledActive && state.controlledStop))break;if(runner==='ollama'&&await observeLoadedModel(model,controller.signal)==='cold')await warmup();

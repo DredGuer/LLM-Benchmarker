@@ -1,7 +1,9 @@
-# Médias de référence personnels
+# Médias de référence
 
-Déposer dans ce dossier vos fichiers **image.png**, **video.mp4**, **audio.wav** (20 Mio maximum chacun). Aucun média fictif n’est fourni. Les noms sont fixes ; ne pas simplement renommer un format différent.
+Déposer vos fichiers **image.png**, **video.mp4**, **audio.wav** dans ce dossier (20 Mio chacun). Aucun média fictif n’est fourni.
 
-Copier `cases.example.json` vers `cases.json` une seule fois pour personnaliser les consignes et références. Ces quatre fichiers personnels sont ignorés par Git et ne sont pas remplacés par les mises à jour. Le mode « Fichiers de référence fixes » les utilise pour chaque modèle. Ils sont accessibles au serveur de fichiers local ; ne pas exposer ce dossier publiquement s’il contient des enregistrements privés.
+Cocher Image/Vidéo/Audio dans la section **Médias**, puis utiliser **Lancer le benchmark**. Les fichiers sont envoyés seuls, sans consigne. Le fichier facultatif `cases.json` (copie initiale de `cases.example.json`) règle uniquement les références d’évaluation et le traitement vidéo ; la référence n’est jamais envoyée au modèle. Les anciens champs de prompt sont ignorés par la campagne.
 
-Voir [le guide multimodal](../../docs/multimodal.md) pour les formats, paramètres et arrêts sur échec. Sans référence, le système n’invente pas une vérification de compréhension.
+Ces fichiers personnels sont ignorés par Git et préservés pendant les mises à jour. Garder le serveur de fichiers local si vos enregistrements sont privés.
+
+Voir [le guide multimodal](../../docs/multimodal.md).

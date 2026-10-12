@@ -19,6 +19,7 @@ function recordControlledResult(r) {
 }
 async function runControlledCampaign(inBatch) {
   if(state.batchActive&&!inBatch)return;
+  if(typeof selectedMediaTypes==='function'&&selectedMediaTypes().length){showToast('Désactivez la comparaison de contextes pour inclure les médias.','error');return;}
   if(state.controlledPreparing||state.controlledActive||state.isRunning||state.analysisRunning)return;
   if(state.runner!=='ollama'){showToast('La campagne à contextes explicites est disponible pour Ollama uniquement.','error');return;}
   if(!getSelectedModel()||getSelectedModel()==='unknown-model'){showToast('Choisissez un modèle.','error');return;}

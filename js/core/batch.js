@@ -73,7 +73,8 @@ async function runBatchCampaign(explicitModels) {
   var models = Array.isArray(explicitModels) ? explicitModels.slice() : Array.from(document.querySelectorAll('#batchModels input:checked')).map(el => el.value);
   if (!explicitModels && state.missingBatchModels?.length) { showToast('Modèles du profil indisponibles : '+state.missingBatchModels.join(', ')+'. Rafraîchissez ou modifiez votre sélection.', 'error'); return; }
   if (state.runner !== 'ollama' || !models.length || models.length > 100) { showToast('Sélectionnez de 1 à 100 modèles Ollama.', 'error'); return; }
-  if (!state.selectedPrompts.size && !agenticEnabled()) { showToast('Choisissez les catégories ou épreuves à exécuter.', 'error'); return; }
+  if(typeof mediaCampaignPreflight==='function'&&!mediaCampaignPreflight())return;
+  if (!state.selectedPrompts.size && !agenticEnabled() && !(typeof selectedMediaTypes==='function'&&selectedMediaTypes().length)) { showToast('Choisissez les catégories ou épreuves à exécuter.', 'error'); return; }
   if (agenticEnabled() && !selectedAgenticScenarios().length) { showToast('Choisissez au moins une épreuve agentique.', 'error'); return; }
   if (!Number.isInteger(getRepetitions()) || getRepetitions() < 1 || getRepetitions() > 20) { showToast('Choisissez de 1 à 20 répétitions.', 'error'); return; }
   if (state.unsavedSession && (await saveSessionToHistory(state.unsavedSession)) === false) return;

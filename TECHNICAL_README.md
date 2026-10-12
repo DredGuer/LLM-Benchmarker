@@ -146,7 +146,7 @@ Plans temporaires, recettes allowlistées, staging, signatures/digest, venv/whee
 
 ## Persistance SQLite (0.15.0)
 
-Le backend 1.5.0 monte `backend/database.js` avant le parseur JSON général. Stockage utilisateur hors dépôt, WAL/transactions, schema local 1 et garde local Host/Origin/connexion ; voir [DATABASE.md](backend/DATABASE.md). `js/core/database.js` gère migration idempotente, vue mémoire et checkpoints sérialisés. `history.js`, profils, statistiques et assistant consomment cette vue : les descriptions antérieures de stockage navigateur concernent les versions avant 0.15.0. Les mesures sont immuables, annotations/exclusions distinctes. Les moteurs attendent chaque checkpoint et la sauvegarde finale. Application/producteur 0.18.0 ; contrats/provenances historiques préservés.
+Le backend 1.5.0 monte `backend/database.js` avant le parseur JSON général. Stockage utilisateur hors dépôt, WAL/transactions, schema local 1 et garde local Host/Origin/connexion ; voir [DATABASE.md](backend/DATABASE.md). `js/core/database.js` gère migration idempotente, vue mémoire et checkpoints sérialisés. `history.js`, profils, statistiques et assistant consomment cette vue : les descriptions antérieures de stockage navigateur concernent les versions avant 0.15.0. Les mesures sont immuables, annotations/exclusions distinctes. Les moteurs attendent chaque checkpoint et la sauvegarde finale. Application/producteur 0.18.2 ; contrats/provenances historiques préservés.
 
 
 ## Interopérabilité NVNC Tech (0.16.0)

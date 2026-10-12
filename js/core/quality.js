@@ -21,7 +21,7 @@ function qualityTasksFor(category) {
   return cases.map(function(task) { return {id:category,name:({math:'Mathématiques',logic:'Logique',code:'Sorties algorithmiques',conversation:'Conversation · rappel',creative:'Créativité · contraintes',factual:'Lecture factuelle'})[category]+' · justesse '+task.id,emoji:'🎯',prompt:task.prompt,qualityTask:task}; });
 }
 function campaignPromptTypes() {
-  return PROMPT_TYPES.filter(pt=>state.selectedPrompts.has(pt.id)).flatMap(pt=>qualityEnabled() && ['math','logic','code','conversation','creative','factual'].includes(pt.id) ? qualityTasksFor(pt.id) : [pt]);
+  return PROMPT_TYPES.filter(pt=>state.selectedPrompts.has(pt.id)).flatMap(pt=>qualityEnabled() && ['math','logic','code','conversation','creative','factual'].includes(pt.id) ? qualityTasksFor(pt.id) : [pt]).concat(typeof selectedMediaTypes==='function'?selectedMediaTypes():[]);
 }
 function finalAnswerText(text) {
   var value=String(text || ''), end=value.lastIndexOf('</think>');

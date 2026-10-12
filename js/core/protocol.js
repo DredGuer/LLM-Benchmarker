@@ -115,11 +115,12 @@ async function loadedModelSnapshot(model) {
 function updateCampaignPlan() {
   var el = document.getElementById('campaignPlan');if(!el)return;
   var agentic = typeof agenticEnabled === 'function' && agenticEnabled();
+  var mediaCount=typeof selectedMediaTypes==='function'?selectedMediaTypes().length:0;
   var count = typeof campaignPromptTypes === 'function' ? campaignPromptTypes().length : state.selectedPrompts.size, reps = getRepetitions();
   if (typeof controlledEnabled === 'function' && controlledEnabled()) {
     if(isOllamaCloud(getSelectedModel())){el.textContent='Cloud : 3 répétitions à température 0 ; contexte fournisseur. RAM et cache distants inconnus, comparaison de contextes locaux indisponible.';return;}
     el.textContent = 'Campagne contrôlée : '+count+' cas de génération + '+(agentic ? selectedAgenticScenarios().length : 0)+' épreuves agentiques × 3 répétitions × 2 contextes ; température 0, chauffe à chaque contexte, runner rechargé entre contextes, cache système non garanti. Contextes demandés : '+document.getElementById('controlledContextA').value+' / '+document.getElementById('controlledContextB').value+' tokens. Les mesures sans contexte vérifié sont exclues des comparaisons.'; return;
   }
-  if (agentic) { var tasks=selectedAgenticScenarios().length; el.textContent = count+' catégorie(s) de génération + '+tasks+' épreuve(s) agentique(s) × '+reps+' répétition(s) = '+(count+tasks)*reps+' mesures + chauffe séparée. Chaque épreuve : 12 tours, 24 appels, 4 minutes ; '+getMaxTokens()+' tokens de sortie cumulés. Plusieurs répétitions fiabilisent les taux.'; return; }
-  el.textContent = count+' catégorie(s) × '+reps+' répétition(s) = '+count*reps+' mesure(s)'+(RUNNERS[state.runner]?.type === 'local' ? ' + chauffe séparée' : '')+'. Limite : '+getMaxTokens()+' tokens par réponse.';
+  if (agentic) { var tasks=selectedAgenticScenarios().length; el.textContent = count+' test(s) texte/média + '+tasks+' épreuve(s) agentique(s) × '+reps+' répétition(s) = '+(count+tasks)*reps+' mesures + chauffe séparée. Chaque épreuve : 12 tours, 24 appels, 4 minutes ; '+getMaxTokens()+' tokens de sortie cumulés. Plusieurs répétitions fiabilisent les taux.'; return; }
+  el.textContent = count+' catégorie(s) × '+reps+' répétition(s) = '+count*reps+' mesure(s)'+(RUNNERS[state.runner]?.type === 'local'&&count>mediaCount ? ' + chauffe séparée' : '')+'. Limite : '+getMaxTokens()+' tokens par réponse.';
 }

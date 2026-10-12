@@ -1,20 +1,8 @@
 {
   "version": "1.0.0",
   "cases": {
-    "image": {
-      "prompt": "Décris précisément ce qui est visible dans cette image.",
-      "expected": "",
-      "representation": "native"
-    },
-    "video": {
-      "prompt": "Décris dans l’ordre les actions visibles dans cette vidéo.",
-      "expected": "",
-      "representation": "frames"
-    },
-    "audio": {
-      "prompt": "Transcris uniquement les paroles de cet audio, sans commentaire.",
-      "expected": "",
-      "representation": "native"
-    }
+    "image": {"expected": "", "representation": "native"},
+    "video": {"expected": "", "representation": "frames"},
+    "audio": {"expected": "", "representation": "native"}
   }
 }

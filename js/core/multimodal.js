@@ -6,17 +6,18 @@ function mediaBase64(buffer){var bytes=new Uint8Array(buffer),chunks=[];for(var 
 function mediaRemote(runner,model){if(typeof isOllamaCloud==='function'&&isOllamaCloud(model))return true;try{return !['localhost','127.0.0.1','[::1]'].includes(new URL(runner==='custom'?state.customBase:RUNNERS[runner].base).hostname)}catch(_){return true}}
 var FIXED_MEDIA={image:{path:'benchmarks/media/image.png',mime:'image/png',prompt:'Décris précisément ce qui est visible dans cette image.',expected:'',representation:'native'},video:{path:'benchmarks/media/video.mp4',mime:'video/mp4',prompt:'Décris dans l’ordre les actions visibles dans cette vidéo.',expected:'',representation:'frames'},audio:{path:'benchmarks/media/audio.wav',mime:'audio/wav',prompt:'Transcris uniquement les paroles de cet audio, sans commentaire.',expected:'',representation:'native'}};
 function fixedMediaMode(){return document.getElementById('mediaSource')?.value==='fixed'}
-async function fixedMediaCase(modality,signal){
+async function fixedMediaCase(modality,signal,inputOnly){
  var base=FIXED_MEDIA[modality];if(!base)throw Error('Catégorie média inconnue.');
  var response=await fetchWithTimeout('benchmarks/media/cases.json',{cache:'no-store',signal},10000),config={};
  if(response.ok){var text=await response.text();if(text.length>60000)throw Error('Configuration média trop volumineuse.');try{config=JSON.parse(text)}catch(_){throw Error('benchmarks/media/cases.json : JSON invalide.')}if(config.version!=='1.0.0'||!config.cases||typeof config.cases!=='object')throw Error('Configuration média : version 1.0.0 et cases requises.');}
  else if(response.status!==404)throw Error('Lecture de cases.json impossible (HTTP '+response.status+').');
- var c=config.cases?.[modality]??{},prompt=c.prompt??base.prompt,expected=c.expected??base.expected,representation=c.representation??base.representation;
- if(typeof prompt!=='string'||!prompt.trim()||prompt.length>12000||typeof expected!=='string'||expected.length>4000||!['native','frames'].includes(representation)||(modality!=='video'&&representation!=='native'))throw Error('Configuration '+modality+' invalide : vérifier consigne, référence et traitement.');
+ var c=config.cases?.[modality]??{},prompt=inputOnly?'':c.prompt??base.prompt,expected=c.expected??base.expected,representation=c.representation??base.representation;
+ if(typeof prompt!=='string'||(!inputOnly&&!prompt.trim())||prompt.length>12000||typeof expected!=='string'||expected.length>4000||!['native','frames'].includes(representation)||(modality!=='video'&&representation!=='native'))throw Error('Configuration '+modality+' invalide : vérifier consigne, référence et traitement.');
  return {...base,prompt:prompt.trim(),expected:expected.trim(),representation};
 }
 var mediaPresetRequest=0;
 async function updateMediaPreset(){
+ if(!document.getElementById('mediaKind'))return;
  var generation=++mediaPresetRequest,fixed=fixedMediaMode(),modality=document.getElementById('mediaKind').value;
  document.getElementById('mediaFile').disabled=fixed;document.getElementById('mediaPrompt').readOnly=fixed;document.getElementById('mediaExpected').readOnly=fixed;document.getElementById('mediaRepresentation').disabled=fixed;
  var info=document.getElementById('mediaPresetPath');if(!fixed){if(info)info.textContent='Fichier et consigne personnalisés.';return}
@@ -45,12 +46,12 @@ async function sampleVideo(file,signal){
  }finally{video.removeAttribute('src');video.load();URL.revokeObjectURL(url)}
 }
 function multimodalRequest(runner,model,prompt,media,temperature,maxTokens,keys){
- if(media.frames)prompt+='\nLes '+media.frames.length+' images sont présentées dans l’ordre chronologique, aux secondes '+media.descriptor.frameTimes.join(', ')+'. La piste audio n’est pas transmise.';
+ if(media.frames&&prompt)prompt+='\nLes '+media.frames.length+' images sont présentées dans l’ordre chronologique, aux secondes '+media.descriptor.frameTimes.join(', ')+'. La piste audio n’est pas transmise.';
  var mime=media.descriptor.mimeType,modality=media.descriptor.modality,headers={'Content-Type':'application/json'},base=runner==='custom'?state.customBase:RUNNERS[runner]?.base;if(!base)throw Error('URL du runner manquante.');base=base.replace(/\/$/,'');
- var images=media.frames||[media.base64],parts=[{type:'text',text:prompt}];
+ var images=media.frames||[media.base64],parts=prompt?[{type:'text',text:prompt}]:[];
  if(runner==='gemini'){
   if(!keys.gemini)throw Error('Clé API Gemini manquante.');headers['x-goog-api-key']=keys.gemini;
-  var nativeParts=media.frames?[{text:prompt},...media.frames.map(data=>({inlineData:{mimeType:'image/jpeg',data}}))]:[{text:prompt},{inlineData:{mimeType:mime,data:media.base64}}];return {url:base+'/v1beta/models/'+encodeURIComponent(model.replace(/^models\//,''))+':generateContent',headers,body:{contents:[{role:'user',parts:nativeParts}],generationConfig:{temperature,maxOutputTokens:maxTokens}},format:'gemini'};
+  var nativeParts=[...(prompt?[{text:prompt}]:[]),...(media.frames?media.frames.map(data=>({inlineData:{mimeType:'image/jpeg',data}})):[{inlineData:{mimeType:mime,data:media.base64}}])];return {url:base+'/v1beta/models/'+encodeURIComponent(model.replace(/^models\//,''))+':generateContent',headers,body:{contents:[{role:'user',parts:nativeParts}],generationConfig:{temperature,maxOutputTokens:maxTokens}},format:'gemini'};
  }
  if(modality==='video'&&!media.frames)throw unsupportedMedia('La vidéo native est disponible avec Gemini. Pour ce runner, choisir les images échantillonnées (sans audio).');
  if(runner==='ollama'){
@@ -59,7 +60,7 @@ function multimodalRequest(runner,model,prompt,media,temperature,maxTokens,keys)
  }
  if(runner==='claude'){
   if(modality==='audio')throw unsupportedMedia('Cet adaptateur Claude ne prend pas l’audio natif en charge.');if(!keys.claude)throw Error('Clé API Claude manquante.');headers['x-api-key']=keys.claude;headers['anthropic-version']='2023-06-01';
-  return {url:base+'/v1/messages',headers,body:{model,max_tokens:maxTokens,temperature,messages:[{role:'user',content:[{type:'text',text:prompt},...images.map(data=>({type:'image',source:{type:'base64',media_type:media.frames?'image/jpeg':mime,data}}))]}]},format:'claude'};
+  return {url:base+'/v1/messages',headers,body:{model,max_tokens:maxTokens,temperature,messages:[{role:'user',content:[...(prompt?[{type:'text',text:prompt}]:[]),...images.map(data=>({type:'image',source:{type:'base64',media_type:media.frames?'image/jpeg':mime,data}}))]}]},format:'claude'};
  }
  if(!['lmstudio','llamacpp','mlx','custom','openai','mistral'].includes(runner))throw unsupportedMedia('Runner multimodal non pris en charge.');
  if(['openai','mistral'].includes(runner)){if(!keys[runner])throw Error('Clé API manquante.');headers.Authorization='Bearer '+keys[runner]}
@@ -92,15 +93,44 @@ async function runMultimodalBenchmark(){
   var task='media-'+datasetDigest.slice(0,16);
   switchTab('results');resetCampaignResults();
   for(var rep=1;rep<=repetitions;rep++){
-   if(controller.signal.aborted)break;if(mediaStatus)mediaStatus.textContent='Test '+rep+' / '+repetitions+' en cours…';var startedAt=new Date().toISOString(),start=performance.now(),answer=null,error=null,mediaOutcome='completed';var requestController=new AbortController(),cancelRequest=()=>requestController.abort();controller.signal.addEventListener('abort',cancelRequest,{once:true});var requestTimer=setTimeout(cancelRequest,180000);
-   try{var request=multimodalRequest(runner,model,prompt,media,temperature,maxTokens,state.apiKeys||{});var response=await fetchWithTimeout(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:requestController.signal},180000);if(!response.ok)throw Error('Le runner a refusé le test multimodal (HTTP '+response.status+'). Vérifier le modèle et son support du média.');answer=multimodalResponse(await response.json(),request.format);if(declaredMediaRefusal(answer.text,expected))throw unsupportedMedia('Le modèle déclare ne pas pouvoir interpréter ce média.')}catch(e){mediaOutcome=e.code==='MEDIA_UNSUPPORTED'?(answer?'model-refusal':'adapter-unsupported'):'failed';error=controller.signal.aborted?'Test interrompu.':requestController.signal.aborted?'Temps maximal du test atteint (3 minutes).':e.message}finally{clearTimeout(requestTimer);controller.signal.removeEventListener('abort',cancelRequest)}
-   var elapsed=performance.now()-start,finishedAt=new Date().toISOString(),completion=answer?classifyCompletion(answer.reason,answer.output,maxTokens,answer.output===null?'estimated':'declared'):{state:'unknown',reason:null,limitReached:false};
-   var assessment=expected?EvaluationContract.assessment({category:modality,protocolId:'media-exact-answer',protocolVersion:'1.0.0',taskId:task,datasetDigest,evaluatorId:'unicode-exact-answer',evaluatorVersion:'1.0.0',status:!error&&!completion.limitReached?'assessed':'incomplete',criteria:[{id:'reference-answer',passed:!!answer&&EvaluationContract.normalizedAnswer(answer.text)===EvaluationContract.normalizedAnswer(expected)}]}):undefined;
-   if(completion.limitReached&&!error)mediaOutcome='truncated';else if(assessment?.status==='assessed'&&assessment.score.value===0)mediaOutcome='reference-mismatch';
-   var result={mediaOutcome,id:crypto.randomUUID(),kind:'multimodal',multimodal:media.descriptor,evaluation:assessment,model,modelMetadata:state.modelMetadata,runner:RUNNERS[runner].name,runnerVersion:state.runnerVersion||null,provenance:captureTestProvenance(model),executionOutcome:error?controller.signal.aborted?'interrupted':'failed':'completed',timestamp:finishedAt,startedAt,finishedAt,phase:'measurement',rep,promptType:modality,promptTypeName:({image:'Image',video:'Vidéo',audio:'Audio'})[modality],promptEmoji:'🎞️',promptText:prompt,response:answer?.text||'',error,completion,protocol:{version:'multimodal-1.0.0',promptDigest,warmupRuns:0,loadState:'unknown',cacheState:'unknown'},metrics:{totalTokens:answer?.output??null,tokenCountKind:answer?.output==null?'estimated':'declared',tokenCountSource:'provider:multimodal-output-usage',totalTime:Math.round(elapsed),tokensPerSec:null,generationTokensPerSec:null,generationTimeMs:null,ttft:null,temperature,maxTokens,contextMode:'auto',contextRequestedTokens:null,contextObservedTokens:null,inputTokens:answer?.input??null},env:JSON.parse(JSON.stringify(state.env))};
+   if(controller.signal.aborted)break;if(mediaStatus)mediaStatus.textContent='Test '+rep+' / '+repetitions+' en cours…';var result=await executePreparedMediaTest({model,runner,prompt,expected,media,task,datasetDigest,promptDigest,temperature,maxTokens},rep,controller.signal);var error=result.error,mediaOutcome=result.mediaOutcome;
    results.push(result);state.results.unshift(result);renderResultCard(result);if((await saveSessionToHistory({id:sessionId,savedAt,model,runner,results,env:JSON.parse(JSON.stringify(state.env)),repetitions,warmupRuns:0}))===false){state.unsavedSession={id:sessionId,savedAt,model,runner,results,env:JSON.parse(JSON.stringify(state.env)),repetitions,warmupRuns:0};throw Error('Sauvegarde SQLite interrompue. Les résultats restent disponibles pour réessayer.')}document.getElementById('exportBtn').disabled=false;if(error)throw Error(error);if(mediaOutcome==='reference-mismatch'||mediaOutcome==='truncated'){stoppedReason=mediaOutcome==='reference-mismatch'?'Benchmark arrêté : réponse différente de la référence (score 0/100).':'Benchmark arrêté : réponse tronquée.';break;}
   }
   if(stoppedReason)showToast(stoppedReason,'error');else showToast('Test multimodal terminé. Les médias ne sont pas inclus dans l’export communautaire.','success');
  }catch(e){stoppedReason=e.message;showToast(e.message,'error')}finally{if(mediaStatus)mediaStatus.textContent=controller.signal.aborted?'Test interrompu.':stoppedReason||results.length+' résultat(s) conservé(s).';currentAbortController=null;state.isRunning=false;lockCampaignControls(false);document.getElementById('mediaControls').disabled=false;document.getElementById('mediaStop').disabled=true;if(document.getElementById('mediaSource'))updateMediaPreset();renderStatistics()}
 }
 function stopMultimodalBenchmark(){currentAbortController?.abort()}
+
+async function executePreparedMediaTest(config,rep,externalSignal){
+ var {model,runner,prompt,expected,media,task,datasetDigest,promptDigest,temperature,maxTokens,protocolVersion}=config;
+ var controller={signal:externalSignal},modality=media.descriptor.modality;
+ var startedAt=new Date().toISOString(),start=performance.now(),answer=null,error=null,mediaOutcome='completed';var requestController=new AbortController(),cancelRequest=()=>requestController.abort();if(controller.signal.aborted)cancelRequest();else controller.signal.addEventListener('abort',cancelRequest,{once:true});var requestTimer=setTimeout(cancelRequest,180000);
+   try{var request=multimodalRequest(runner,model,prompt,media,temperature,maxTokens,state.apiKeys||{});var response=await fetchWithTimeout(request.url,{method:'POST',headers:request.headers,body:JSON.stringify(request.body),signal:requestController.signal},180000);if(!response.ok)throw Error('Le runner a refusé le test multimodal (HTTP '+response.status+'). Vérifier le modèle et son support du média.');answer=multimodalResponse(await response.json(),request.format);if(declaredMediaRefusal(answer.text,expected))throw unsupportedMedia('Le modèle déclare ne pas pouvoir interpréter ce média.')}catch(e){mediaOutcome=e.code==='MEDIA_UNSUPPORTED'?(answer?'model-refusal':'adapter-unsupported'):'failed';error=controller.signal.aborted?'Test interrompu.':requestController.signal.aborted?'Temps maximal du test atteint (3 minutes).':e.message}finally{clearTimeout(requestTimer);controller.signal.removeEventListener('abort',cancelRequest)}
+   var elapsed=performance.now()-start,finishedAt=new Date().toISOString(),completion=answer?classifyCompletion(answer.reason,answer.output,maxTokens,answer.output===null?'estimated':'declared'):{state:'unknown',reason:null,limitReached:false};
+   var assessment=expected?EvaluationContract.assessment({category:modality,protocolId:'media-exact-answer',protocolVersion:'1.0.0',taskId:task,datasetDigest,evaluatorId:'unicode-exact-answer',evaluatorVersion:'1.0.0',status:!error&&!completion.limitReached?'assessed':'incomplete',criteria:[{id:'reference-answer',passed:!!answer&&EvaluationContract.normalizedAnswer(answer.text)===EvaluationContract.normalizedAnswer(expected)}]}):undefined;
+   if(completion.limitReached&&!error)mediaOutcome='truncated';else if(assessment?.status==='assessed'&&assessment.score.value===0)mediaOutcome='reference-mismatch';
+   var result={mediaOutcome,id:crypto.randomUUID(),kind:'multimodal',multimodal:media.descriptor,evaluation:assessment,model,modelMetadata:state.modelMetadata,runner:RUNNERS[runner].name,runnerVersion:state.runnerVersion||null,provenance:captureTestProvenance(model),executionOutcome:error?controller.signal.aborted?'interrupted':'failed':'completed',timestamp:finishedAt,startedAt,finishedAt,phase:'measurement',rep,promptType:modality,promptTypeName:({image:'Image',video:'Vidéo',audio:'Audio'})[modality],promptEmoji:'🎞️',promptText:prompt,response:answer?.text||'',error,completion,protocol:{version:protocolVersion||'multimodal-1.0.0',promptDigest,warmupRuns:0,loadState:'unknown',cacheState:'unknown'},metrics:{totalTokens:answer?.output??null,tokenCountKind:answer?.output==null?'estimated':'declared',tokenCountSource:'provider:multimodal-output-usage',totalTime:Math.round(elapsed),tokensPerSec:null,generationTokensPerSec:null,generationTimeMs:null,ttft:null,temperature,maxTokens,contextMode:'auto',contextRequestedTokens:null,contextObservedTokens:null,inputTokens:answer?.input??null},env:JSON.parse(JSON.stringify(state.env))};
+
+ return result;
+}
+
+function selectedMediaTypes(){return ['image','video','audio'].filter(id=>document.getElementById('media-'+id)?.checked===true).map(id=>({id:'media-'+id,kind:'multimodal',modality:id,name:({image:'Image',video:'Vidéo',audio:'Audio'})[id],emoji:({image:'🖼️',video:'🎞️',audio:'🎙️'})[id],prompt:''}));}
+function mediaCampaignPreflight(){
+ if(!selectedMediaTypes().length)return true;
+ if(typeof controlledEnabled==='function'&&controlledEnabled()){showToast('Désactivez la comparaison de contextes pour inclure les médias.','error');return false;}
+ if(mediaRemote(state.runner,getSelectedModel())&&!document.getElementById('mediaConsent')?.checked){showToast('Confirmez l’envoi des médias au runner distant choisi.','error');return false;}
+ return true;
+}
+async function executeCampaignMediaTest(model,type,rep,signal){
+ if(mediaRemote(state.runner,model)&&!document.getElementById('mediaConsent')?.checked)throw Error('Envoi distant des médias non autorisé.');
+ if(!type.mediaPrepared){
+  var c=await fixedMediaCase(type.modality,signal,true),file=await loadFixedMedia(c,signal),media=await prepareMultimodal(file,type.modality,c.representation,signal),promptDigest=await promptFingerprint(''),maxTokens=getMaxTokens();
+  if(!Number.isInteger(maxTokens)||maxTokens<1||maxTokens>32768)throw Error('Budget de sortie invalide.');
+  var datasetDigest=await promptFingerprint(EvaluationContract.canonical({protocolVersion:'media-input-only-1.0.0',category:type.modality,promptDigest,referenceDigest:c.expected?await promptFingerprint(EvaluationContract.normalizedAnswer(c.expected)):null,media:media.descriptor,frameDigests:media.frameDigests??[]}));
+  type.mediaPrepared={model,runner:state.runner,prompt:'',expected:c.expected,media,task:'media-'+datasetDigest.slice(0,16),datasetDigest,promptDigest,temperature:0,maxTokens,protocolVersion:'media-input-only-1.0.0'};
+ }
+ var status=document.getElementById('mediaStatus');if(status)status.textContent=type.name+' · '+rep+' / '+getRepetitions();
+ return executePreparedMediaTest(type.mediaPrepared,rep,signal);
+}
+function mediaMustStop(result){return result.kind==='multimodal'&&(!!result.error||result.completion?.limitReached||result.mediaOutcome==='reference-mismatch');}
+function mediaStopMessage(result){return result.error||(result.completion?.limitReached?'Réponse média tronquée.':'Réponse média différente de la référence (0/100).');}
